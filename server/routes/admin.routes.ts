@@ -1,0 +1,363 @@
+import { Router } from "express";
+import { body, param } from "express-validator";
+
+import {
+  adjustLpMainBalance,
+  changeUserStatus,
+  createTradeLog,
+  createLpUser,
+  deletePnlUpload,
+  getAllWithdrawRequests,
+  getAdminPageContent,
+  getAdminStats,
+  getBrandingAssets,
+  getNotificationOverview,
+  getAllDeposites,
+  getWithdrawWalletMethods,
+  getDepositeById,
+  getAllLpUsers,
+  getAllTradeLogs,
+  listPnlUploads,
+  reviewWithdrawRequest,
+  reviewDeposite,
+  reviewKyc,
+  sendPushToAllUsers,
+  sendPushToSingleUser,
+  setUserPushPreference,
+  updateAdminPageContent,
+  updateLpUserLockInBalance,
+  updateLpUserPassword,
+  uploadBrandingLogo,
+  getPaymentSetup,
+  updatePaymentSetup,
+  uploadPaymentQr,
+  deletePaymentQr,
+  uploadPnlFiles,
+} from "../controllers/admin.controller";
+import {
+  createApiSource,
+  deleteApiSource,
+  listApiSources,
+  setApiSourceUsers,
+  updateApiSource,
+} from "../controllers/apiSource.controller";
+import {
+  backfillCharges,
+  deleteOrderCharges,
+  deleteSymbolCharge,
+  deleteUserGlobalCharge,
+  deleteUserSymbolCharge,
+  listChargeSettings,
+  listOrderCharges,
+  setGlobalCharge,
+  setSymbolCharge,
+  setUserGlobalCharge,
+  setUserSymbolCharge,
+} from "../controllers/chargeSetting.controller";
+import { exportData, listDataTables, resetData } from "../controllers/dataManagement.controller";
+import { createNotice, listAdminNotices } from "../controllers/notice.controller";
+import { protect } from "../middlewares/auth.middleware";
+import { authorizeRole } from "../middlewares/role.middleware";
+import { pdfUpload, pngUpload, imageUpload } from "../middlewares/upload.middleware";
+import { validateRequest } from "../middlewares/validate.middleware";
+
+const router = Router();
+
+router.use(protect, authorizeRole("admin"));
+
+router.post(
+  "/users",
+  [
+    body("fullName").isString().isLength({ min: 2 }),
+    body("email").isEmail(),
+    body("password").isString().isLength({ min: 8 }),
+    body("phone").optional().isString(),
+  ],
+  validateRequest,
+  createLpUser
+);
+
+router.get("/stats", getAdminStats);
+router.get("/branding/logos", getBrandingAssets);
+router.get("/page-content/:slug", getAdminPageContent);
+router.put(
+  "/page-content/:slug",
+  [param("slug").isString().isIn(["about", "help", "support", "faq"])],
+  validateRequest,
+  updateAdminPageContent
+);
+router.get("/users", getAllLpUsers);
+
+router.patch(
+  "/users/:id/kyc-status",
+  [param("id").isMongoId(), body("kycStatus").isString()],
+  validateRequest,
+  reviewKyc
+);
+
+router.patch(
+  "/users/:id/status",
+  [param("id").isMongoId(), body("status").isString()],
+  validateRequest,
+  changeUserStatus
+);
+
+router.patch(
+  "/users/:id/password",
+  [param("id").isMongoId(), body("password").isString().isLength({ min: 8 })],
+  validateRequest,
+  updateLpUserPassword
+);
+
+router.patch(
+  "/users/:id/lock-in-balance",
+  [param("id").isMongoId(), body("lockInBalance").isFloat({ min: 0 })],
+  validateRequest,
+  updateLpUserLockInBalance
+);
+
+router.patch(
+  "/users/:id/main-balance",
+  [
+    param("id").isMongoId(),
+    body("action").isString().isIn(["credit", "debit"]),
+    body("amount").isFloat({ gt: 0 }),
+    body("category").isString().trim().isLength({ min: 1, max: 100 }),
+    body("note").optional().isString().trim().isLength({ max: 300 }),
+  ],
+  validateRequest,
+  adjustLpMainBalance
+);
+
+router.post(
+  "/setup/logos/:variant",
+  [param("variant").isString().isIn(["dark", "light", "mobile"])],
+  validateRequest,
+  pngUpload.single("logo"),
+  uploadBrandingLogo
+);
+
+router.get("/payment-setup", getPaymentSetup);
+router.patch("/payment-setup", updatePaymentSetup);
+router.post(
+  "/payment-setup/qr/:network",
+  [param("network").isString().isIn(["TRC20", "ERC20", "BEP20"])],
+  validateRequest,
+  imageUpload.single("qrCode"),
+  uploadPaymentQr
+);
+router.delete(
+  "/payment-setup/qr/:network",
+  [param("network").isString().isIn(["TRC20", "ERC20", "BEP20"])],
+  validateRequest,
+  deletePaymentQr
+);
+
+router.get("/notifications/overview", getNotificationOverview);
+
+router.post(
+  "/notifications/send-all",
+  [
+    body("title").optional().isString().isLength({ min: 1, max: 120 }),
+    body("body").optional().isString().isLength({ min: 1, max: 500 }),
+    body("url").optional().isString().isLength({ min: 1, max: 200 }),
+  ],
+  validateRequest,
+  sendPushToAllUsers
+);
+
+router.post(
+  "/notifications/users/:id/send",
+  [
+    param("id").isMongoId(),
+    body("title").optional().isString().isLength({ min: 1, max: 120 }),
+    body("body").optional().isString().isLength({ min: 1, max: 500 }),
+    body("url").optional().isString().isLength({ min: 1, max: 200 }),
+  ],
+  validateRequest,
+  sendPushToSingleUser
+);
+
+router.patch(
+  "/notifications/users/:id/push-preference",
+  [param("id").isMongoId(), body("enabled").isBoolean()],
+  validateRequest,
+  setUserPushPreference
+);
+
+router.post(
+  "/trades",
+  [
+    body("lpUserId").isMongoId(),
+    body("tradePair").isString().isLength({ min: 3 }),
+    body("tradeVal").isFloat({ min: 0 }),
+    body("tradeType").isString().isIn(["profit", "loss"]),
+    body("margin").isFloat({ min: 0 }),
+  ],
+  validateRequest,
+  createTradeLog
+);
+
+router.get("/trades", getAllTradeLogs);
+
+router.get("/deposits", getAllDeposites);
+
+router.get(
+  "/deposits/:id",
+  [param("id").isMongoId()],
+  validateRequest,
+  getDepositeById
+);
+
+router.patch(
+  "/deposits/:id/status",
+  [
+    param("id").isMongoId(),
+    body("status").isString().isIn(["approved", "rejected"]),
+    body("adminRemark").optional().isString().isLength({ max: 500 }),
+  ],
+  validateRequest,
+  reviewDeposite
+);
+
+router.get("/withdrawals/methods", getWithdrawWalletMethods);
+
+router.get("/withdrawals/requests", getAllWithdrawRequests);
+
+router.patch(
+  "/withdrawals/:id/status",
+  [
+    param("id").isMongoId(),
+    body("status").isString().isIn(["approved", "rejected"]),
+    body("adminRemark").optional().isString().isLength({ max: 500 }),
+  ],
+  validateRequest,
+  reviewWithdrawRequest
+);
+
+router.post("/pnl-uploads", pdfUpload.array("files", 20), uploadPnlFiles);
+router.get("/pnl-uploads", listPnlUploads);
+router.delete("/pnl-uploads/:id", [param("id").isMongoId()], validateRequest, deletePnlUpload);
+
+router.get("/api-sources", listApiSources);
+router.post(
+  "/api-sources",
+  [
+    body("name").isString().trim().isLength({ min: 2, max: 100 }),
+    body("baseUrl").isURL({ require_protocol: true }),
+    body("apiKey").isString().trim().isLength({ min: 4 }),
+    body("authHeader").optional().isString().isIn(["x-api-key", "bearer"]),
+  ],
+  validateRequest,
+  createApiSource
+);
+router.patch(
+  "/api-sources/:id",
+  [
+    param("id").isMongoId(),
+    body("name").optional().isString().trim().isLength({ min: 2, max: 100 }),
+    body("baseUrl").optional().isURL({ require_protocol: true }),
+    body("apiKey").optional().isString().trim(),
+    body("authHeader").optional().isString().isIn(["x-api-key", "bearer"]),
+    body("isActive").optional().isBoolean(),
+  ],
+  validateRequest,
+  updateApiSource
+);
+router.delete("/api-sources/:id", [param("id").isMongoId()], validateRequest, deleteApiSource);
+router.put(
+  "/api-sources/:id/users",
+  [param("id").isMongoId(), body("userIds").isArray(), body("userIds.*").isMongoId()],
+  validateRequest,
+  setApiSourceUsers
+);
+
+router.get("/charge-settings", listChargeSettings);
+router.put(
+  "/charge-settings/global",
+  [body("chargePerStandardLot").isFloat({ min: 0 })],
+  validateRequest,
+  setGlobalCharge
+);
+router.put(
+  "/charge-settings/symbol/:symbol",
+  [param("symbol").isString().trim().isLength({ min: 1, max: 20 }), body("chargePerStandardLot").isFloat({ min: 0 })],
+  validateRequest,
+  setSymbolCharge
+);
+router.delete(
+  "/charge-settings/symbol/:symbol",
+  [param("symbol").isString().trim().isLength({ min: 1, max: 20 })],
+  validateRequest,
+  deleteSymbolCharge
+);
+router.put(
+  "/charge-settings/user/:userId/global",
+  [param("userId").isMongoId(), body("chargePerStandardLot").isFloat({ min: 0 })],
+  validateRequest,
+  setUserGlobalCharge
+);
+router.put(
+  "/charge-settings/user/:userId/symbol/:symbol",
+  [
+    param("userId").isMongoId(),
+    param("symbol").isString().trim().isLength({ min: 1, max: 20 }),
+    body("chargePerStandardLot").isFloat({ min: 0 }),
+  ],
+  validateRequest,
+  setUserSymbolCharge
+);
+router.delete(
+  "/charge-settings/user/:userId/global",
+  [param("userId").isMongoId()],
+  validateRequest,
+  deleteUserGlobalCharge
+);
+router.delete(
+  "/charge-settings/user/:userId/symbol/:symbol",
+  [param("userId").isMongoId(), param("symbol").isString().trim().isLength({ min: 1, max: 20 })],
+  validateRequest,
+  deleteUserSymbolCharge
+);
+router.post("/charge-settings/backfill", backfillCharges);
+router.get("/order-charges", listOrderCharges);
+router.delete(
+  "/order-charges",
+  [
+    body("from").matches(/^\d{4}-\d{2}-\d{2}$/),
+    body("to").optional().matches(/^\d{4}-\d{2}-\d{2}$/),
+  ],
+  validateRequest,
+  deleteOrderCharges
+);
+
+router.post(
+  "/notices",
+  [
+    body("title").isString().trim().isLength({ min: 1, max: 150 }),
+    body("message").isString().trim().isLength({ min: 1, max: 2000 }),
+    body("target").isString().isIn(["all", "user"]),
+    body("userId")
+      .if(body("target").equals("user"))
+      .isMongoId()
+      .withMessage("A user must be selected when sending to a single user"),
+  ],
+  validateRequest,
+  createNotice
+);
+router.get("/notices", listAdminNotices);
+
+router.get("/data/tables", listDataTables);
+router.get("/data/export", exportData);
+router.post(
+  "/data/reset",
+  [
+    body("tables").isArray({ min: 1 }),
+    body("tables.*").isString(),
+    body("confirmText").isString(),
+  ],
+  validateRequest,
+  resetData
+);
+
+export default router;
