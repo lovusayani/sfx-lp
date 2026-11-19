@@ -29,6 +29,14 @@ State as of 2026-11-19, branch `claude/friendly-noether-u03gym`. Read this first
   Notices (+ optional push), Settings (branding, deposit wallets, data export/reset). Shared UI in
   `client/components/admin/ui.tsx`; old URLs redirect via `next.config.ts`. No support-ticket or
   audit-log API exists yet, so those parts of the design are not built.
+- **Email via Resend (2026-11-19)**: sign-up with emailed 6-digit code (unconfirmed accounts can't
+  sign in), forgot/reset password (single-use 30-min link to `CLIENT_URL/reset-password`), optional
+  emailed code at every sign-in (Security screen / Settings toggle). Server env `RESEND_API_KEY`,
+  `EMAIL_FROM` (staging: `onboarding@resend.dev`, which only delivers to the Resend account owner's
+  inbox — verify a domain in Resend and change `EMAIL_FROM` before real users). Key kept in the server
+  `.env` and in a private file on the owner's PC only.
+- Deploy agent self-updates from each bundle; `publish-bundle.sh` strips CRLF from `ops/*.sh`
+  (a Windows-built bundle once broke it with a CRLF shebang).
 
 ## Deployment design (same droplet as Curreex, Curreex untouched)
 - Droplet `curreex-prod` (DigitalOcean, blr1, 1 vCPU / 1 GB / 25 GB, Ubuntu 24.04, IP 168.144.73.76),
@@ -58,7 +66,7 @@ State as of 2026-11-19, branch `claude/friendly-noether-u03gym`. Read this first
    Windows bundles include `sharp-win32` (unused: no next/image) — harmless.
 2. Domain + HTTPS (owner to provide domain and DNS provider) → then close port 8080 / remove
    `swissliq-test.conf`, set `COOKIE_SECURE=true` and `CLIENT_URL` in `shared/.env`.
-3. Resend email (sign-up, reset, OTP, 2FA).
+3. Verify a sending domain in Resend and set `EMAIL_FROM=Name <no-reply@domain>` in `shared/.env`.
 4. PWA manifest/service worker. Optional: support tickets + admin audit log (needs new API).
 
 ## Rules agreed with the owner
