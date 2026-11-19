@@ -1,0 +1,81 @@
+name: Build release
+
+# Builds the API and web app on GitHub (never on the 1 GB server) and publishes a
+# ready-to-run bundle as a GitHub release. The server pulls it, verifies the
+# checksum, deploys it and rolls back automatically if health checks fail.
+# The bundle contains code only — no secrets (those live in the server's .env).
+
+on:
+  push:
+    branches: [main, "claude/friendly-noether-u03gym"]
+    paths-ignore: ["**.md", "docs/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-release
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      CHANNEL: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            server/package-lock.json
+            client/package-lock.json
+
+      - name: Build API
+        working-directory: server
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+          npm prune --omit=dev
+
+      - name: Lint and build web app
+        working-directory: client
+        run: |
+          npm ci --no-audit --no-fund
+          npx tsc --noEmit
+          npx next build
+
+      - name: Assemble bundle
+        run: |
+          set -euo pipefail
+          VERSION="$(date -u +%Y%m%d%H%M)-${GITHUB_SHA::7}"
+          R=bundle/sfx-lp
+          mkdir -p "$R/server" "$R/web" "$R/ops"
+          cp -r server/dist server/node_modules server/package.json "$R/server/"
+          cp -r client/.next/standalone/. "$R/web/"
+          cp -r client/.next/static "$R/web/.next/static"
+          cp -r client/public "$R/web/public"
+          cp scripts/ops/swissliq-deploy.sh "$R/ops/"
+          echo "$VERSION" > "$R/VERSION"
+          echo "$GITHUB_SHA" > "$R/COMMIT"
+          tar -C bundle -czf sfx-lp.tar.gz sfx-lp
+          sha256sum sfx-lp.tar.gz | cut -d' ' -f1 > sfx-lp.tar.gz.sha256
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          ls -lh sfx-lp.tar.gz
+
+      - name: Publish release (${{ env.CHANNEL }}-latest)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="${CHANNEL}-latest"
+          gh release delete "$TAG" --cleanup-tag --yes 2>/dev/null || true
+          gh release create "$TAG" sfx-lp.tar.gz sfx-lp.tar.gz.sha256 \
+            --target "$GITHUB_SHA" \
+            --title "$CHANNEL $VERSION" \
+            --notes "Automated $CHANNEL build $VERSION from ${GITHUB_SHA}." \
+            --prerelease

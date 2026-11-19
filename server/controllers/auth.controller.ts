@@ -1,3 +1,4 @@
+import { env } from "../config/env";
 import { Request, Response } from "express";
 
 import { User } from "../models/User";
@@ -29,13 +30,13 @@ const setAuthCookies = (res: Response, accessToken: string, refreshToken: string
   res.cookie("accessToken", accessToken, {
     httpOnly: true,
     sameSite: "lax",
-    secure: false,
+    secure: env.cookieSecure,
     maxAge: 15 * 60 * 1000,
   });
   res.cookie("refreshToken", refreshToken, {
     httpOnly: true,
     sameSite: "lax",
-    secure: false,
+    secure: env.cookieSecure,
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 };

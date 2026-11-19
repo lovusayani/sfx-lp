@@ -36,6 +36,10 @@ export const env = {
   demoLpName: process.env.DEMO_LP_NAME || "Demo LP User",
   demoLpEmail: process.env.DEMO_LP_EMAIL || "",
   demoLpPassword: process.env.DEMO_LP_PASSWORD || "",
+  // Secure cookies whenever the app is served over HTTPS (override with COOKIE_SECURE=true|false).
+  cookieSecure: process.env.COOKIE_SECURE
+    ? process.env.COOKIE_SECURE === "true"
+    : (process.env.CLIENT_URL || "").startsWith("https://"),
   deployWebhookSecret: process.env.DEPLOY_WEBHOOK_SECRET || "",
   firebaseProjectId: process.env.FIREBASE_PROJECT_ID || "",
   firebaseClientEmail: process.env.FIREBASE_CLIENT_EMAIL || "",
