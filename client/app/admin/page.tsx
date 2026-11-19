@@ -1,302 +1,228 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowUpRight } from "lucide-react";
+
+import { ago, compactMoney, Empty, Loading, money, PageHeader, Panel, Pill, Rows, StatCard, StatGrid, shortId } from "@/components/admin/ui";
+import { cn } from "@/components/sfx/cn";
 import {
-    ArrowDownLeft,
-    ArrowUpRight,
-    RefreshCw,
-    TrendingDown,
-    TrendingUp,
-    Users,
-    Wallet,
-} from "lucide-react";
+  AdminDashboardStats,
+  AdminDepositeRecord,
+  AdminLpUser,
+  AdminWithdrawRequestRecord,
+  getAdminDashboardStats,
+  getAdminNotificationOverview,
+  getAdminWithdrawRequests,
+  getAllAdminDeposites,
+  getAllLpUsers,
+} from "@/services/admin.service";
 
-import { AdminDashboardStats, getAdminDashboardStats } from "@/services/admin.service";
+type Data = {
+  stats: AdminDashboardStats | null;
+  users: AdminLpUser[];
+  deposits: AdminDepositeRecord[];
+  withdrawals: AdminWithdrawRequestRecord[];
+  push: boolean | null;
+  loadedAt: Date;
+};
 
-// ── helpers ───────────────────────────────────────────────────────────────────
-const fmt = (v: number) =>
-    new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
+const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+const monthKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}`;
+const isOpen = (s: string) => s === "pending" || s === "processing";
 
-// ── TradingView Advanced Chart ────────────────────────────────────────────────
-function TradingViewChart() {
-    const containerRef = useRef<HTMLDivElement>(null);
-    useEffect(() => {
-        const el = containerRef.current;
-        if (!el || el.querySelector("script")) return;
-        const script = document.createElement("script");
-        script.type = "text/javascript";
-        script.src =
-            "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
-        script.async = true;
-        script.innerHTML = JSON.stringify({
-            autosize: true,
-            symbol: "BINANCE:BTCUSDT",
-            interval: "D",
-            timezone: "Etc/UTC",
-            theme: "dark",
-            style: "1",
-            locale: "en",
-            hide_top_toolbar: false,
-            hide_legend: false,
-            save_image: false,
-            calendar: false,
-            support_host: "https://www.tradingview.com",
+/** Figma: ADMIN / Overview ("Command center"). */
+export default function AdminOverviewPage() {
+  const [data, setData] = useState<Data | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    Promise.allSettled([getAdminDashboardStats(), getAllLpUsers(), getAllAdminDeposites(), getAdminWithdrawRequests(), getAdminNotificationOverview()]).then(
+      ([s, u, d, w, n]) => {
+        if (!alive) return;
+        setData({
+          stats: s.status === "fulfilled" ? s.value : null,
+          users: u.status === "fulfilled" ? u.value : [],
+          deposits: d.status === "fulfilled" ? d.value : [],
+          withdrawals: w.status === "fulfilled" ? w.value : [],
+          push: n.status === "fulfilled" ? n.value.serverConfigured : null,
+          loadedAt: new Date(),
         });
-        el.appendChild(script);
-    }, []);
-    return (
-        <div
-            ref={containerRef}
-            className="tradingview-widget-container"
-            style={{ height: "100%", width: "100%" }}
-        >
-            <div
-                className="tradingview-widget-container__widget"
-                style={{ height: "calc(100% - 32px)", width: "100%" }}
+      }
+    );
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const view = useMemo(() => {
+    if (!data) return null;
+    const now = new Date();
+    const thisMonth = monthKey(now);
+    const inMonth = (iso?: string) => Boolean(iso) && monthKey(new Date(iso!)) === thisMonth;
+
+    const kycPending = data.users.filter((u) => u.kycStatus === "pending");
+    const pendingDeposits = data.deposits.filter((d) => d.status === "pending");
+    const openWithdrawals = data.withdrawals.filter((w) => isOpen(w.status));
+    const newUsers = data.users.filter((u) => inMonth(u.createdAt)).length;
+    const assets = data.stats ? data.stats.totalMainBalance + data.stats.totalTradeBalance : data.users.reduce((a, u) => a + (u.mainWalletBalance || 0) + (u.tradeWalletBalance || 0), 0);
+
+    // Capital flow: approved deposits − approved withdrawals per month, last 12 months.
+    const buckets = Array.from({ length: 12 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
+      return { key: monthKey(d), label: MONTHS[d.getMonth()], value: 0 };
+    });
+    const idx = new Map(buckets.map((b, i) => [b.key, i]));
+    data.deposits.filter((d) => d.status === "approved").forEach((d) => {
+      const i = idx.get(monthKey(new Date(d.reviewedAt || d.createdAt || 0)));
+      if (i !== undefined) buckets[i].value += d.amount;
+    });
+    data.withdrawals.filter((w) => w.status === "approved").forEach((w) => {
+      const i = idx.get(monthKey(new Date(w.reviewedAt || w.createdAt || 0)));
+      if (i !== undefined) buckets[i].value -= w.amount;
+    });
+    const netFlow = buckets.reduce((a, b) => a + b.value, 0);
+    const monthDeposits = data.deposits.filter((d) => d.status === "approved" && inMonth(d.reviewedAt || d.createdAt)).reduce((a, d) => a + d.amount, 0);
+
+    const queue = [
+      ...pendingDeposits.map((d) => ({ id: d.id, ref: shortId("DEP", d.id), name: d.user.fullName, amount: d.amount, at: d.createdAt, href: "/admin/deposits", kind: "Deposit" })),
+      ...openWithdrawals.map((w) => ({ id: w.id, ref: shortId("WDR", w.id), name: w.user.fullName, amount: w.amount, at: w.createdAt, href: "/admin/withdrawals", kind: "Withdrawal" })),
+    ]
+      .sort((a, b) => new Date(b.at || 0).getTime() - new Date(a.at || 0).getTime())
+      .slice(0, 5);
+
+    return {
+      assets,
+      monthDeposits,
+      active: data.users.filter((u) => u.status === "active").length,
+      newUsers,
+      kycPending: kycPending.length,
+      pendingDeposits,
+      openWithdrawals,
+      payouts: openWithdrawals.reduce((a, w) => a + w.amount, 0),
+      buckets,
+      netFlow,
+      queue,
+    };
+  }, [data]);
+
+  const max = view ? Math.max(1, ...view.buckets.map((b) => Math.abs(b.value))) : 1;
+
+  return (
+    <>
+      <PageHeader title="Command center" subtitle="LP management • Performance & operations" />
+
+      {!view || !data ? (
+        <Loading rows={5} />
+      ) : (
+        <>
+          <StatGrid cols={4}>
+            <StatCard caps label="Total assets" value={compactMoney(view.assets)} note={`${compactMoney(view.monthDeposits)} deposited this month`} />
+            <StatCard caps label="Active LP accounts" value={view.active.toLocaleString()} note={`+${view.newUsers} new this month`} />
+            <StatCard caps label="KYC pending" value={view.kycPending} note={view.kycPending ? "Require review" : "Queue is clear"} noteTone={view.kycPending ? "gold" : "muted"} />
+            <StatCard
+              caps
+              label="Pending payouts"
+              value={compactMoney(view.payouts)}
+              note={`${view.openWithdrawals.length} request${view.openWithdrawals.length === 1 ? "" : "s"} waiting`}
+              noteTone={view.openWithdrawals.length ? "danger" : "muted"}
             />
-        </div>
-    );
-}
+          </StatGrid>
 
-// ── Mini symbol overview ──────────────────────────────────────────────────────
-const TICKERS = [
-    { symbol: "BINANCE:BTCUSDT" },
-    { symbol: "BINANCE:ETHUSDT" },
-    { symbol: "TVC:GOLD" },
-    { symbol: "FOREXCOM:SPXUSD" },
-];
-
-function MiniTicker({ symbol }: { symbol: string }) {
-    const ref = useRef<HTMLDivElement>(null);
-    const mounted = useRef(false);
-    useEffect(() => {
-        if (!ref.current || mounted.current) return;
-        mounted.current = true;
-        const script = document.createElement("script");
-        script.type = "text/javascript";
-        script.src =
-            "https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js";
-        script.async = true;
-        script.innerHTML = JSON.stringify({
-            symbol,
-            width: "100%",
-            height: "100%",
-            locale: "en",
-            dateRange: "1M",
-            colorTheme: "dark",
-            isTransparent: true,
-            autosize: false,
-        });
-        ref.current.appendChild(script);
-    }, [symbol]);
-    return (
-        <div
-            className="tradingview-widget-container overflow-hidden rounded-xl border border-white/10"
-            style={{ height: 164 }}
-        >
-            <div
-                ref={ref}
-                className="tradingview-widget-container__widget"
-                style={{ height: 164, width: "100%" }}
-            />
-        </div>
-    );
-}
-
-// ── Stat card ─────────────────────────────────────────────────────────────────
-interface StatCardProps {
-    title: string;
-    main: string;
-    sub?: string;
-    subLabel?: string;
-    icon: React.ReactNode;
-    gradient: string;
-    iconBg: string;
-    badge?: { label: string; color: string };
-}
-
-function StatCard({ title, main, sub, subLabel, icon, gradient, iconBg, badge }: StatCardProps) {
-    return (
-        <div
-            className={`relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br ${gradient} p-5 shadow-xl backdrop-blur-md`}
-        >
-            {/* glow blob */}
-            <div className="pointer-events-none absolute -right-6 -top-6 h-32 w-32 rounded-full opacity-20 blur-2xl" />
-            <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                    <p className="text-xs font-medium tracking-widest text-white/50 uppercase">{title}</p>
-                    <p className="mt-1.5 truncate text-2xl font-bold text-white">{main}</p>
-                    {sub && (
-                        <p className="mt-1 text-xs text-white/60">
-                            {subLabel && <span className="mr-1 text-white/40">{subLabel}</span>}
-                            {sub}
-                        </p>
-                    )}
-                </div>
-                <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${iconBg} shadow-lg`}>
-                    {icon}
-                </div>
-            </div>
-            {badge && (
-                <div className="mt-3">
-                    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${badge.color}`}>
-                        {badge.label}
-                    </span>
-                </div>
-            )}
-        </div>
-    );
-}
-
-// ── Page ──────────────────────────────────────────────────────────────────────
-export default function AdminPage() {
-    const [stats, setStats] = useState<AdminDashboardStats | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
-
-    const loadStats = useCallback(async () => {
-        setLoading(true);
-        setError("");
-        try {
-            const data = await getAdminDashboardStats();
-            setStats(data);
-        } catch {
-            setError("Failed to load dashboard stats.");
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        loadStats();
-    }, [loadStats]);
-
-    const pnlNet = stats ? stats.totalProfits - stats.totalLosses : 0;
-
-    const cards: StatCardProps[] = [
-        {
-            title: "Total LP Users",
-            main: loading ? "—" : String(stats?.totalUsers ?? 0),
-            sub: "Registered LP accounts",
-            icon: <Users className="h-6 w-6 text-cyan-200" />,
-            gradient: "from-cyan-900/60 via-cyan-800/30 to-sky-900/60",
-            iconBg: "bg-cyan-500/30",
-            badge: { label: "Live", color: "bg-cyan-500/20 text-cyan-300 ring-1 ring-cyan-500/40" },
-        },
-        {
-            title: "Total Balances",
-            main: loading ? "—" : `$${fmt((stats?.totalMainBalance ?? 0) + (stats?.totalTradeBalance ?? 0))}`,
-            sub: loading
-                ? undefined
-                : `Main $${fmt(stats?.totalMainBalance ?? 0)}  ·  Trade $${fmt(stats?.totalTradeBalance ?? 0)}`,
-            icon: <Wallet className="h-6 w-6 text-violet-200" />,
-            gradient: "from-violet-900/60 via-purple-800/30 to-indigo-900/60",
-            iconBg: "bg-violet-500/30",
-        },
-        {
-            title: "Profits & Losses",
-            main: loading ? "—" : (pnlNet >= 0 ? `+$${fmt(pnlNet)}` : `-$${fmt(Math.abs(pnlNet))}`),
-            sub: loading
-                ? undefined
-                : `P $${fmt(stats?.totalProfits ?? 0)}  ·  L $${fmt(stats?.totalLosses ?? 0)}`,
-            icon:
-                pnlNet >= 0 ? (
-                    <TrendingUp className="h-6 w-6 text-emerald-200" />
-                ) : (
-                    <TrendingDown className="h-6 w-6 text-rose-200" />
-                ),
-            gradient:
-                pnlNet >= 0
-                    ? "from-emerald-900/60 via-green-800/30 to-teal-900/60"
-                    : "from-rose-900/60 via-red-800/30 to-pink-900/60",
-            iconBg: pnlNet >= 0 ? "bg-emerald-500/30" : "bg-rose-500/30",
-            badge: pnlNet >= 0
-                ? { label: "Net Profit", color: "bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/40" }
-                : { label: "Net Loss", color: "bg-rose-500/20 text-rose-300 ring-1 ring-rose-500/40" },
-        },
-        {
-            title: "Net Flow",
-            main: loading
-                ? "—"
-                : ((stats?.netBalance ?? 0) >= 0
-                    ? `+$${fmt(stats?.netBalance ?? 0)}`
-                    : `-$${fmt(Math.abs(stats?.netBalance ?? 0))}`),
-            sub: loading
-                ? undefined
-                : `Dep $${fmt(stats?.totalDeposits ?? 0)}  ·  Wd $${fmt(stats?.totalWithdrawals ?? 0)}`,
-            icon:
-                (stats?.netBalance ?? 0) >= 0 ? (
-                    <ArrowDownLeft className="h-6 w-6 text-amber-200" />
-                ) : (
-                    <ArrowUpRight className="h-6 w-6 text-orange-200" />
-                ),
-            gradient: "from-amber-900/60 via-orange-800/30 to-yellow-900/60",
-            iconBg: "bg-amber-500/30",
-            subLabel: "Deposits − Withdrawals",
-        },
-    ];
-
-    return (
-        <section className="space-y-6">
-            {/* header */}
-            <div className="flex items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-                    <p className="mt-0.5 text-sm text-zinc-400">Live LP management overview</p>
-                </div>
-                <button
-                    type="button"
-                    onClick={loadStats}
-                    disabled={loading}
-                    className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-zinc-200 backdrop-blur-sm transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                    <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-                    Refresh
-                </button>
-            </div>
-
-            {error && (
-                <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
-                    {error}
-                </p>
-            )}
-
-            {/* ── 4 stat cards ─────────────────────────────────────────────── */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                {cards.map((card) => (
-                    <StatCard key={card.title} {...card} />
+          <div className="grid gap-6 xl:grid-cols-[1.45fr_1fr]">
+            <Panel title="Capital flow" aside="Last 12 months">
+              <div className="mb-6 flex items-center gap-3">
+                <p className="text-[32px] font-bold tabular-nums text-sfx-text">{compactMoney(view.netFlow)}</p>
+                <span className="rounded-[12px] bg-sfx-gold px-3 py-1.5 text-[12px] font-semibold text-sfx-on-gold">Net deposits</span>
+              </div>
+              <div className="flex h-[150px] items-end gap-[3%]" role="img" aria-label="Net deposits per month, last 12 months">
+                {view.buckets.map((b, i) => (
+                  <div key={b.key} className="flex h-full flex-1 flex-col justify-end" title={`${b.label}: ${money(b.value, 0)}`}>
+                    <div
+                      className={cn("w-full rounded-[6px]", i >= 9 ? "bg-sfx-gold" : "bg-[#6b632c]", b.value < 0 && "bg-sfx-danger/60")}
+                      style={{ height: `${Math.max(4, (Math.abs(b.value) / max) * 100)}%` }}
+                    />
+                  </div>
                 ))}
-            </div>
+              </div>
+              <div className="mt-4 flex justify-between text-[12px] text-sfx-muted">
+                {view.buckets.filter((_, i) => i % 2 === 0).map((b) => (
+                  <span key={b.key}>{b.label}</span>
+                ))}
+                <span>USD</span>
+              </div>
+            </Panel>
 
-            {/* ── TradingView widgets ───────────────────────────────────────── */}
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                {/* Chart */}
-                <div className="overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-zinc-900/80 via-zinc-800/40 to-zinc-900/80 shadow-xl backdrop-blur-md">
-                    <div className="flex items-center gap-2 border-b border-white/10 px-5 py-3">
-                        <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
-                        <p className="text-sm font-semibold text-white">Live Chart — BTC/USDT</p>
-                        <span className="ml-auto text-xs text-zinc-500">TradingView</span>
-                    </div>
-                    <div style={{ height: 420 }}>
-                        <TradingViewChart />
-                    </div>
-                </div>
+            <Panel title="Requests requiring review" aside="Priority queue">
+              {view.queue.length === 0 ? (
+                <Empty title="Nothing waiting" body="New deposits and withdrawals that need a decision will appear here." />
+              ) : (
+                <Rows>
+                  {view.queue.map((q) => (
+                    <li key={q.id} className="flex items-center gap-3 py-3.5">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[14px] font-semibold text-sfx-text">
+                          {q.ref} • {q.name}
+                        </p>
+                        <p className="truncate text-[12px] text-sfx-muted">
+                          {q.kind} · submitted {ago(q.at)}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-[14px] tabular-nums text-sfx-text/90">{money(q.amount, 0)}</span>
+                      <Pill status="pending" />
+                      <Link href={q.href} className="hidden text-[13px] font-semibold text-sfx-gold hover:underline sm:inline">
+                        View
+                      </Link>
+                    </li>
+                  ))}
+                </Rows>
+              )}
+            </Panel>
+          </div>
 
-                {/* Tickers 2×2 */}
-                <div className="overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-zinc-900/80 via-zinc-800/40 to-zinc-900/80 shadow-xl backdrop-blur-md">
-                    <div className="flex items-center gap-2 border-b border-white/10 px-5 py-3">
-                        <span className="h-2 w-2 animate-pulse rounded-full bg-sky-400" />
-                        <p className="text-sm font-semibold text-white">Market Tickers</p>
-                        <span className="ml-auto text-xs text-zinc-500">TradingView</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3 p-4">
-                        {TICKERS.map((t) => (
-                            <MiniTicker key={t.symbol} symbol={t.symbol} />
-                        ))}
-                    </div>
-                </div>
-            </div>
-        </section>
-    );
+          <div className="mt-6 grid gap-6 lg:grid-cols-2">
+            <Panel title="System status" aside="Live">
+              <ul className="flex flex-col gap-2.5 text-[14px]">
+                <StatusLine ok={Boolean(data.stats)} text={data.stats ? "API and database reachable" : "Couldn’t read platform statistics"} />
+                <StatusLine
+                  ok={data.push !== false}
+                  text={data.push === null ? "Push service status unknown" : data.push ? "Push notifications configured" : "Push notifications not configured"}
+                />
+              </ul>
+              <p className="mt-4 text-[12px] text-sfx-muted">Last refreshed {data.loadedAt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</p>
+            </Panel>
+
+            <Panel title="Today’s workflow" aside="Next actions">
+              <ul className="flex flex-col gap-3 text-[15px] text-sfx-text">
+                <WorkItem n={view.kycPending} text="KYC reviews queued" href="/admin/kyc" />
+                <WorkItem n={view.pendingDeposits.length} text="Deposits awaiting proof check" href="/admin/deposits" />
+                <WorkItem n={view.openWithdrawals.length} text="Withdrawals need approval" href="/admin/withdrawals" />
+              </ul>
+            </Panel>
+          </div>
+        </>
+      )}
+    </>
+  );
 }
 
+function StatusLine({ ok, text }: { ok: boolean; text: string }) {
+  return (
+    <li className={cn("flex items-center gap-2.5", ok ? "text-sfx-success" : "text-sfx-danger")}>
+      <span className={cn("h-2.5 w-2.5 rounded-full", ok ? "bg-sfx-success" : "bg-sfx-danger")} aria-hidden />
+      {text}
+    </li>
+  );
+}
+
+function WorkItem({ n, text, href }: { n: number; text: string; href: string }) {
+  return (
+    <li>
+      <Link href={href} className="group inline-flex items-center gap-3 hover:text-sfx-gold">
+        <span className="w-6 tabular-nums text-sfx-muted group-hover:text-sfx-gold">{n}</span>
+        {text}
+        <ArrowUpRight size={14} className="opacity-0 transition group-hover:opacity-100" />
+      </Link>
+    </li>
+  );
+}

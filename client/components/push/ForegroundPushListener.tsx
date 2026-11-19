@@ -14,7 +14,7 @@ export default function ForegroundPushListener() {
                     return;
                 }
 
-                const title = payload.notification?.title || payload.data?.title || "L Max Notification";
+                const title = payload.notification?.title || payload.data?.title || "New notification";
                 const body = payload.notification?.body || payload.data?.body || "You have a new update.";
                 const url = payload.data?.url || "/dashboard";
 

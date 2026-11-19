@@ -1,550 +1,406 @@
 "use client";
 
-import { OpenFileButton, SecureImage } from "@/components/files/SecureFile";
-import { FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { Plus } from "lucide-react";
 
 import {
-    AdminLpUser,
-    createLpUser,
-    getAllLpUsers,
-    updateLpUserLockInBalance,
-    updateLpUserKycStatus,
-    updateLpUserPassword,
-    updateLpUserStatus,
+  Btn,
+  DetailList,
+  Dialog,
+  Empty,
+  exportCsv,
+  ExportLink,
+  FilterChips,
+  Loading,
+  money,
+  OpsNote,
+  PageHeader,
+  Panel,
+  Pill,
+  Row,
+  Rows,
+  SearchBox,
+  shortId,
+  StatCard,
+  StatGrid,
+} from "@/components/admin/ui";
+import { Pager, Segmented } from "@/components/sfx/kit";
+import { Alert, Field, SelectField } from "@/components/sfx/ui";
+import {
+  adjustAdminLpMainBalance,
+  AdminLpUser,
+  createLpUser,
+  getAllLpUsers,
+  updateAdminUserPushPreference,
+  updateLpUserLockInBalance,
+  updateLpUserPassword,
+  updateLpUserStatus,
 } from "@/services/admin.service";
 
-type NewLpForm = {
-    fullName: string;
-    email: string;
-    phone: string;
-    password: string;
-};
+type Filter = "all" | "active" | "kyc" | "suspended";
+const PAGE = 12;
+const total = (u: AdminLpUser) => (u.mainWalletBalance || 0) + (u.tradeWalletBalance || 0);
 
-const defaultForm: NewLpForm = {
-    fullName: "",
-    email: "",
-    phone: "",
-    password: "",
-};
-
-const PAGE_SIZE = 10;
-
+/** Figma: ADMIN / Users. LP accounts, balances and account controls. */
 export default function AdminUsersPage() {
-    const [users, setUsers] = useState<AdminLpUser[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
-    const [openModal, setOpenModal] = useState(false);
-    const [openModifyModal, setOpenModifyModal] = useState(false);
-    const [selectedUser, setSelectedUser] = useState<AdminLpUser | null>(null);
-    const [openKycPreview, setOpenKycPreview] = useState(false);
-    const [previewUser, setPreviewUser] = useState<AdminLpUser | null>(null);
-    const [form, setForm] = useState<NewLpForm>(defaultForm);
-    const [submitting, setSubmitting] = useState(false);
-    const [savingModify, setSavingModify] = useState(false);
-    const [statusForm, setStatusForm] = useState<"active" | "inactive">("active");
-    const [kycForm, setKycForm] = useState<"approved" | "rejected" | "pending">("pending");
-    const [newPassword, setNewPassword] = useState("");
-    const [lockInBalanceForm, setLockInBalanceForm] = useState("500");
-    const [usersPage, setUsersPage] = useState(1);
-    const [kycPage, setKycPage] = useState(1);
+  const [users, setUsers] = useState<AdminLpUser[] | null>(null);
+  const [error, setError] = useState("");
+  const [filter, setFilter] = useState<Filter>("all");
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [selected, setSelected] = useState<AdminLpUser | null>(null);
+  const [creating, setCreating] = useState(false);
 
-
-    const loadUsers = async () => {
-        setLoading(true);
-        setError("");
-
-        try {
-            const data = await getAllLpUsers();
-            setUsers(data);
-        } catch (loadError) {
-            setError(loadError instanceof Error ? loadError.message : "Failed to load users");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        loadUsers();
-    }, []);
-
-    const onCreateUser = async (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        setSubmitting(true);
-        setError("");
-
-        try {
-            const created = await createLpUser({
-                fullName: form.fullName,
-                email: form.email,
-                phone: form.phone || undefined,
-                password: form.password,
-            });
-
-            setUsers((prev) => [created, ...prev]);
-            setForm(defaultForm);
-            setOpenModal(false);
-        } catch (createError) {
-            setError(createError instanceof Error ? createError.message : "Failed to create LP user");
-        } finally {
-            setSubmitting(false);
-        }
-    };
-
-    const openModifyForUser = (user: AdminLpUser) => {
-        setSelectedUser(user);
-        setStatusForm(user.status === "active" ? "active" : "inactive");
-        setKycForm(user.kycStatus === "not_submitted" ? "pending" : user.kycStatus);
-        setNewPassword("");
-        setLockInBalanceForm(String(user.lockInBalance ?? 500));
-        setOpenModifyModal(true);
-    };
-
-    const onModifyUser = async (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        if (!selectedUser) {
-            return;
-        }
-
-        setSavingModify(true);
-        setError("");
-
-        try {
-            await updateLpUserStatus(selectedUser.id, statusForm === "active" ? "active" : "suspended");
-            await updateLpUserKycStatus(selectedUser.id, kycForm);
-
-            if (newPassword.trim()) {
-                await updateLpUserPassword(selectedUser.id, newPassword.trim());
-            }
-
-            await updateLpUserLockInBalance(selectedUser.id, Number(lockInBalanceForm || 0));
-
-            await loadUsers();
-            setOpenModifyModal(false);
-            setSelectedUser(null);
-        } catch (modifyError) {
-            setError(modifyError instanceof Error ? modifyError.message : "Failed to modify user");
-        } finally {
-            setSavingModify(false);
-        }
-    };
-
-    const onQuickKycUpdate = async (userId: string, kycStatus: "approved" | "rejected") => {
-        setError("");
-        try {
-            await updateLpUserKycStatus(userId, kycStatus);
-            await loadUsers();
-        } catch (kycError) {
-            setError(kycError instanceof Error ? kycError.message : "Failed to update KYC status");
-        }
-    };
-
-    const usersWithDocuments = users.filter((user) => {
-        const docs = user.kycDocuments;
-        return Boolean(docs?.companyProof || docs?.panCard || docs?.aadhaarCard || docs?.selfie);
-    });
-
-    const totalUsersPages = Math.max(1, Math.ceil(users.length / PAGE_SIZE));
-    const totalKycPages = Math.max(1, Math.ceil(usersWithDocuments.length / PAGE_SIZE));
-
-    const paginatedUsers = users.slice((usersPage - 1) * PAGE_SIZE, usersPage * PAGE_SIZE);
-    const paginatedKycUsers = usersWithDocuments.slice((kycPage - 1) * PAGE_SIZE, kycPage * PAGE_SIZE);
-
-    useEffect(() => {
-        if (usersPage > totalUsersPages) {
-            setUsersPage(totalUsersPages);
-        }
-    }, [totalUsersPages, usersPage]);
-
-    useEffect(() => {
-        if (kycPage > totalKycPages) {
-            setKycPage(totalKycPages);
-        }
-    }, [kycPage, totalKycPages]);
-
-    return (
-        <section className="card space-y-4">
-            <div className="flex items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-2xl font-semibold">Users</h1>
-                    <p className="text-sm text-zinc-400">All LP users</p>
-                </div>
-                <button type="button" className="btn-primary" onClick={() => setOpenModal(true)}>
-                    Add New User / LP
-                </button>
-            </div>
-
-            {error && <p className="rounded-lg bg-red-500/10 p-2 text-sm text-red-300">{error}</p>}
-
-            <div className="overflow-x-auto rounded-xl border border-zinc-800">
-                <table className="min-w-full text-sm">
-                    <thead className="bg-zinc-900 text-zinc-400">
-                        <tr>
-                            <th className="px-3 py-2 text-left">Name</th>
-                            <th className="px-3 py-2 text-left">Email</th>
-                            <th className="px-3 py-2 text-left">Phone</th>
-                            <th className="px-3 py-2 text-left">Lock In</th>
-                            <th className="px-3 py-2 text-left">Status</th>
-                            <th className="px-3 py-2 text-left">KYC</th>
-                            <th className="px-3 py-2 text-left">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {loading && (
-                            <tr className="border-t border-zinc-800">
-                                <td className="px-3 py-3 text-zinc-400" colSpan={7}>
-                                    Loading users...
-                                </td>
-                            </tr>
-                        )}
-
-                        {!loading && users.length === 0 && (
-                            <tr className="border-t border-zinc-800">
-                                <td className="px-3 py-3 text-zinc-400" colSpan={7}>
-                                    No LP users yet.
-                                </td>
-                            </tr>
-                        )}
-
-                        {!loading &&
-                            paginatedUsers.map((user) => (
-                                <tr key={user.id} className="border-t border-zinc-800">
-                                    <td className="px-3 py-2">{user.fullName}</td>
-                                    <td className="px-3 py-2">{user.email}</td>
-                                    <td className="px-3 py-2">{user.phone || "--"}</td>
-                                    <td className="px-3 py-2">{Number(user.lockInBalance ?? 500).toFixed(2)}</td>
-                                    <td className="px-3 py-2">{user.status}</td>
-                                    <td className="px-3 py-2">{user.kycStatus}</td>
-                                    <td className="px-3 py-2">
-                                        <button
-                                            type="button"
-                                            className="btn-secondary px-3 py-1 text-xs"
-                                            onClick={() => openModifyForUser(user)}
-                                        >
-                                            Modify
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                    </tbody>
-                </table>
-            </div>
-
-            <div className="flex items-center justify-end gap-2">
-                <button
-                    type="button"
-                    className="btn-secondary px-3 py-1 text-xs"
-                    disabled={usersPage <= 1}
-                    onClick={() => setUsersPage((prev) => Math.max(1, prev - 1))}
-                >
-                    Prev
-                </button>
-                <span className="text-xs text-zinc-400">
-                    Page {usersPage} of {totalUsersPages}
-                </span>
-                <button
-                    type="button"
-                    className="btn-secondary px-3 py-1 text-xs"
-                    disabled={usersPage >= totalUsersPages}
-                    onClick={() => setUsersPage((prev) => Math.min(totalUsersPages, prev + 1))}
-                >
-                    Next
-                </button>
-            </div>
-
-            <div className="overflow-x-auto rounded-xl border border-zinc-800">
-                <table className="min-w-full text-sm">
-                    <caption className="caption-top px-3 py-2 text-left text-sm text-zinc-400">
-                        KYC Documents Review
-                    </caption>
-                    <thead className="bg-zinc-900 text-zinc-400">
-                        <tr>
-                            <th className="px-3 py-2 text-left">User</th>
-                            <th className="px-3 py-2 text-left">KYC Status</th>
-                            <th className="px-3 py-2 text-left">Documents</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {usersWithDocuments.length === 0 && (
-                            <tr className="border-t border-zinc-800">
-                                <td className="px-3 py-3 text-zinc-400" colSpan={3}>
-                                    No KYC documents submitted yet.
-                                </td>
-                            </tr>
-                        )}
-
-                        {paginatedKycUsers.map((user) => (
-                            <tr key={`kyc-${user.id}`} className="border-t border-zinc-800">
-                                <td className="px-3 py-2">{user.fullName}</td>
-                                <td className="px-3 py-2">{user.kycStatus}</td>
-                                <td className="px-3 py-2">
-                                    <button
-                                        type="button"
-                                        className="btn-secondary px-3 py-1 text-xs"
-                                        onClick={() => {
-                                            setPreviewUser(user);
-                                            setOpenKycPreview(true);
-                                        }}
-                                    >
-                                        View
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-
-            <div className="flex items-center justify-end gap-2">
-                <button
-                    type="button"
-                    className="btn-secondary px-3 py-1 text-xs"
-                    disabled={kycPage <= 1}
-                    onClick={() => setKycPage((prev) => Math.max(1, prev - 1))}
-                >
-                    Prev
-                </button>
-                <span className="text-xs text-zinc-400">
-                    Page {kycPage} of {totalKycPages}
-                </span>
-                <button
-                    type="button"
-                    className="btn-secondary px-3 py-1 text-xs"
-                    disabled={kycPage >= totalKycPages}
-                    onClick={() => setKycPage((prev) => Math.min(totalKycPages, prev + 1))}
-                >
-                    Next
-                </button>
-            </div>
-
-            {openModal && (
-                <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 px-4">
-                    <div className="card w-full max-w-lg">
-                        <div className="mb-4 flex items-center justify-between">
-                            <h2 className="text-xl font-semibold">Add New User / LP</h2>
-                            <button
-                                type="button"
-                                className="btn-secondary px-3 py-1"
-                                onClick={() => {
-                                    setOpenModal(false);
-                                    setForm(defaultForm);
-                                }}
-                            >
-                                Close
-                            </button>
-                        </div>
-
-                        <form className="space-y-3" onSubmit={onCreateUser}>
-                            <div className="space-y-1">
-                                <label className="text-sm text-zinc-300">Full Name</label>
-                                <input
-                                    className="input"
-                                    value={form.fullName}
-                                    onChange={(event) => setForm((prev) => ({ ...prev, fullName: event.target.value }))}
-                                    required
-                                />
-                            </div>
-
-                            <div className="space-y-1">
-                                <label className="text-sm text-zinc-300">Email</label>
-                                <input
-                                    className="input"
-                                    type="email"
-                                    value={form.email}
-                                    onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
-                                    required
-                                />
-                            </div>
-
-                            <div className="space-y-1">
-                                <label className="text-sm text-zinc-300">Phone (optional)</label>
-                                <input
-                                    className="input"
-                                    value={form.phone}
-                                    onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))}
-                                />
-                            </div>
-
-                            <div className="space-y-1">
-                                <label className="text-sm text-zinc-300">Password</label>
-                                <input
-                                    className="input"
-                                    type="password"
-                                    minLength={8}
-                                    value={form.password}
-                                    onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
-                                    required
-                                />
-                            </div>
-
-                            <button disabled={submitting} className="btn-primary w-full">
-                                {submitting ? "Creating..." : "Create LP User"}
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {openModifyModal && selectedUser && (
-                <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 px-4">
-                    <div className="card w-full max-w-lg">
-                        <div className="mb-4 flex items-center justify-between">
-                            <h2 className="text-xl font-semibold">Modify User</h2>
-                            <button
-                                type="button"
-                                className="btn-secondary px-3 py-1"
-                                onClick={() => {
-                                    setOpenModifyModal(false);
-                                    setSelectedUser(null);
-                                }}
-                            >
-                                Close
-                            </button>
-                        </div>
-
-                        <form className="space-y-3" onSubmit={onModifyUser}>
-                            <div className="space-y-1">
-                                <label className="text-sm text-zinc-300">User</label>
-                                <input className="input" value={`${selectedUser.fullName} (${selectedUser.email})`} disabled />
-                            </div>
-
-                            <div className="space-y-1">
-                                <label className="text-sm text-zinc-300">Status</label>
-                                <select
-                                    className="input"
-                                    value={statusForm}
-                                    onChange={(event) => setStatusForm(event.target.value as "active" | "inactive")}
-                                >
-                                    <option value="active">Active</option>
-                                    <option value="inactive">Inactive</option>
-                                </select>
-                            </div>
-
-                            <div className="space-y-1">
-                                <label className="text-sm text-zinc-300">KYC Status</label>
-                                <select
-                                    className="input"
-                                    value={kycForm}
-                                    onChange={(event) =>
-                                        setKycForm(event.target.value as "approved" | "rejected" | "pending")
-                                    }
-                                >
-                                    <option value="approved">Approved</option>
-                                    <option value="rejected">Rejected</option>
-                                    <option value="pending">Pending</option>
-                                </select>
-                            </div>
-
-                            <div className="space-y-1">
-                                <label className="text-sm text-zinc-300">New Password (optional)</label>
-                                <input
-                                    className="input"
-                                    type="password"
-                                    minLength={8}
-                                    value={newPassword}
-                                    onChange={(event) => setNewPassword(event.target.value)}
-                                    placeholder="Leave blank if no change"
-                                />
-                            </div>
-
-                            <div className="space-y-1">
-                                <label className="text-sm text-zinc-300">Lock In Balance</label>
-                                <input
-                                    className="input"
-                                    type="number"
-                                    min={0}
-                                    step="0.01"
-                                    value={lockInBalanceForm}
-                                    onChange={(event) => setLockInBalanceForm(event.target.value)}
-                                />
-                            </div>
-
-                            <button disabled={savingModify} className="btn-primary w-full">
-                                {savingModify ? "Saving..." : "Save Changes"}
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {openKycPreview && previewUser && (
-                <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 p-4">
-                    <div className="mx-auto w-full max-w-3xl rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
-                        <div className="mb-4 flex items-center justify-between">
-                            <h3 className="text-lg font-semibold">KYC Documents - {previewUser.fullName}</h3>
-                            <button
-                                type="button"
-                                className="btn-secondary px-3 py-1"
-                                onClick={() => {
-                                    setOpenKycPreview(false);
-                                    setPreviewUser(null);
-                                }}
-                            >
-                                Close
-                            </button>
-                        </div>
-
-                        <div className="grid gap-3 md:grid-cols-2">
-                            {[
-                                { key: "companyProof", label: "Company Proof" },
-                                { key: "panCard", label: "PAN Card" },
-                                { key: "aadhaarCard", label: "Aadhaar Card" },
-                                { key: "selfie", label: "Selfie" },
-                            ].map((doc) => {
-                                const filePath = previewUser.kycDocuments?.[doc.key as keyof NonNullable<AdminLpUser["kycDocuments"]>];
-
-                                return (
-                                    <div key={doc.key} className="rounded-xl border border-zinc-800 p-3">
-                                        <p className="mb-2 text-sm font-medium text-zinc-200">{doc.label}</p>
-                                        {!filePath && <p className="text-sm text-zinc-500">No document</p>}
-                                        {filePath && (
-                                            <div className="space-y-3">
-                                                <div className="mx-auto h-[230px] w-[320px] max-w-full overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950">
-                                                    <SecureImage
-                                                        fileRef={filePath}
-                                                        alt={doc.label}
-                                                        className="h-full w-full object-contain"
-                                                    />
-                                                </div>
-                                                <OpenFileButton
-                                                    fileRef={filePath}
-                                                    className="btn-secondary inline-block px-3 py-1 text-xs"
-                                                >
-                                                    View
-                                                </OpenFileButton>
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-
-                        <div className="mt-4 flex gap-2">
-                            <button
-                                type="button"
-                                className="btn-primary"
-                                onClick={async () => {
-                                    await onQuickKycUpdate(previewUser.id, "approved");
-                                    setOpenKycPreview(false);
-                                    setPreviewUser(null);
-                                }}
-                            >
-                                Approve
-                            </button>
-                            <button
-                                type="button"
-                                className="btn-secondary border-red-700 text-red-300 hover:bg-red-900/20"
-                                onClick={async () => {
-                                    await onQuickKycUpdate(previewUser.id, "rejected");
-                                    setOpenKycPreview(false);
-                                    setPreviewUser(null);
-                                }}
-                            >
-                                Reject
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </section>
+  const load = () =>
+    getAllLpUsers().then(
+      (u) => {
+        setUsers(u);
+        setSelected((s) => (s ? u.find((x) => x.id === s.id) || null : s));
+      },
+      (e) => {
+        setUsers([]);
+        setError(e instanceof Error ? e.message : "Couldn’t load users.");
+      }
     );
+
+  useEffect(() => {
+    let alive = true;
+    getAllLpUsers().then(
+      (u) => alive && setUsers(u),
+      (e) => {
+        if (!alive) return;
+        setUsers([]);
+        setError(e instanceof Error ? e.message : "Couldn’t load users.");
+      }
+    );
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const list = useMemo(() => users || [], [users]);
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return list
+      .filter((u) =>
+        filter === "active" ? u.status === "active" : filter === "suspended" ? u.status === "suspended" : filter === "kyc" ? u.kycStatus === "pending" : true
+      )
+      .filter((u) => !q || `${u.fullName} ${u.email} ${u.phone || ""}`.toLowerCase().includes(q));
+  }, [list, filter, query]);
+  const pages = Math.max(1, Math.ceil(shown.length / PAGE));
+  const current = Math.min(page, pages);
+
+  return (
+    <>
+      <PageHeader
+        title="Users"
+        actions={
+          <Btn onClick={() => setCreating(true)}>
+            <Plus size={16} /> New LP account
+          </Btn>
+        }
+      />
+
+      <StatGrid>
+        <StatCard label="Total accounts" value={users ? list.length.toLocaleString() : "—"} />
+        <StatCard label="Verified users" value={users ? list.filter((u) => u.kycStatus === "approved").length.toLocaleString() : "—"} />
+        <StatCard label="Restricted accounts" value={users ? list.filter((u) => u.status === "suspended").length.toLocaleString() : "—"} />
+      </StatGrid>
+
+      {error && <Alert className="mb-4">{error}</Alert>}
+
+      <Panel
+        title="Users activity"
+        aside={
+          <>
+            <SearchBox value={query} onChange={(v) => (setQuery(v), setPage(1))} placeholder="Search name or email" />
+            <ExportLink
+              onClick={() =>
+                exportCsv(
+                  "lp-users.csv",
+                  shown.map((u) => ({
+                    id: shortId("LP", u.id),
+                    name: u.fullName,
+                    email: u.email,
+                    phone: u.phone || "",
+                    status: u.status,
+                    kyc: u.kycStatus,
+                    main_wallet: u.mainWalletBalance || 0,
+                    trade_wallet: u.tradeWalletBalance || 0,
+                    lock_in: u.lockInBalance || 0,
+                    joined: u.createdAt || "",
+                  }))
+                )
+              }
+            />
+          </>
+        }
+      >
+        <FilterChips
+          value={filter}
+          onChange={(v) => (setFilter(v), setPage(1))}
+          options={[
+            { value: "all", label: "All" },
+            { value: "active", label: "Active" },
+            { value: "kyc", label: "KYC pending" },
+            { value: "suspended", label: "Suspended" },
+          ]}
+        />
+        {users === null ? (
+          <Loading />
+        ) : shown.length === 0 ? (
+          <Empty title={list.length ? "No matching users" : "No LP accounts yet"} body={list.length ? "Try another filter or search." : "Create the first LP account with “New LP account”."} />
+        ) : (
+          <>
+            <Rows>
+              {shown.slice((current - 1) * PAGE, current * PAGE).map((u) => (
+                <Row
+                  key={u.id}
+                  title={u.fullName}
+                  sub={`${shortId("LP", u.id)} • ${u.email}`}
+                  middle={money(total(u), 0)}
+                  middleSub={u.kycStatus === "approved" ? "Verified" : u.kycStatus === "pending" ? "KYC in review" : u.kycStatus === "rejected" ? "KYC rejected" : "Unverified"}
+                  status={<Pill status={u.status} />}
+                  onView={() => setSelected(u)}
+                />
+              ))}
+            </Rows>
+            <div className="mt-4">
+              <Pager page={current} pages={pages} onPage={setPage} />
+            </div>
+          </>
+        )}
+      </Panel>
+
+      <OpsNote />
+
+      <UserDialog user={selected} onClose={() => setSelected(null)} onChanged={load} />
+      <CreateUserDialog
+        open={creating}
+        onClose={() => setCreating(false)}
+        onCreated={(u) => {
+          setUsers((prev) => [u, ...(prev || [])]);
+          setCreating(false);
+        }}
+      />
+    </>
+  );
+}
+
+/* ── User detail & controls ────────────────────────────────────────── */
+
+const CREDIT = ["Bonus", "Referrals", "Adjustment", "Promotion", "Manual Credit"];
+const DEBIT = ["Tax", "Transfer Fees", "Penalty", "Service Charge", "Manual Deduction"];
+
+function UserDialog({ user, onClose, onChanged }: { user: AdminLpUser | null; onClose: () => void; onChanged: () => Promise<unknown> }) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ tone: "success" | "danger"; text: string } | null>(null);
+  const [lockIn, setLockIn] = useState("");
+  const [password, setPassword] = useState("");
+  const [action, setAction] = useState<"credit" | "debit">("credit");
+  const [category, setCategory] = useState(CREDIT[0]);
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
+  const [lastId, setLastId] = useState<string | null>(null);
+
+  // Reset the form whenever a different user is opened.
+  if (user && user.id !== lastId) {
+    setLastId(user.id);
+    setLockIn(String(user.lockInBalance ?? 0));
+    setPassword("");
+    setAction("credit");
+    setCategory(CREDIT[0]);
+    setAmount("");
+    setNote("");
+    setMsg(null);
+  }
+
+  if (!user) return null;
+
+  const run = async (key: string, fn: () => Promise<unknown>, ok: string) => {
+    setBusy(key);
+    setMsg(null);
+    try {
+      await fn();
+      await onChanged();
+      setMsg({ tone: "success", text: ok });
+    } catch (e) {
+      setMsg({ tone: "danger", text: e instanceof Error ? e.message : "That didn’t work. Please try again." });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const adjust = () => {
+    const n = Number(amount);
+    if (!Number.isFinite(n) || n <= 0) return setMsg({ tone: "danger", text: "Enter an amount greater than 0." });
+    run(
+      "adjust",
+      () => adjustAdminLpMainBalance(user.id, { action, amount: n, category, note: note.trim() || undefined }),
+      `${action === "credit" ? "Credited" : "Debited"} ${money(n)} (${category}).`
+    ).then(() => (setAmount(""), setNote("")));
+  };
+
+  return (
+    <Dialog open onClose={() => (setLastId(null), onClose())} title={user.fullName} wide>
+      <div className="grid gap-6 md:grid-cols-2">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <Pill status={user.status} />
+            <Pill status={user.kycStatus === "approved" ? "verified" : user.kycStatus} label={`KYC: ${user.kycStatus.replace("_", " ")}`} />
+          </div>
+          <DetailList
+            items={[
+              ["Account", shortId("LP", user.id)],
+              ["Email", user.email],
+              ["Mobile", user.phone || "—"],
+              ["Joined", user.createdAt ? new Date(user.createdAt).toLocaleDateString("en-GB") : "—"],
+              ["Main wallet", money(user.mainWalletBalance)],
+              ["Trade wallet", money(user.tradeWalletBalance)],
+              ["Lock-in (trade)", money(user.lockInBalance)],
+              ["Push notifications", user.settings?.alerts ? "On" : "Off"],
+            ]}
+          />
+          <div className="flex flex-wrap gap-2">
+            <Btn
+              variant={user.status === "active" ? "danger" : "primary"}
+              loading={busy === "status"}
+              onClick={() =>
+                run(
+                  "status",
+                  () => updateLpUserStatus(user.id, user.status === "active" ? "suspended" : "active"),
+                  user.status === "active" ? "Account suspended." : "Account reactivated."
+                )
+              }
+            >
+              {user.status === "active" ? "Suspend account" : "Reactivate account"}
+            </Btn>
+            <Btn
+              variant="secondary"
+              loading={busy === "push"}
+              onClick={() =>
+                run("push", () => updateAdminUserPushPreference(user.id, !user.settings?.alerts), `Push notifications turned ${user.settings?.alerts ? "off" : "on"}.`)
+              }
+            >
+              Push {user.settings?.alerts ? "off" : "on"}
+            </Btn>
+            {user.kycStatus !== "not_submitted" && (
+              <Link href={`/admin/kyc?user=${user.id}`} className="inline-flex h-[42px] items-center rounded-[14px] bg-sfx-surface-2 px-4 text-[13px] font-semibold text-sfx-text hover:brightness-125">
+                Review KYC
+              </Link>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-5">
+          <section className="flex flex-col gap-3">
+            <h3 className="text-[14px] font-semibold text-sfx-text">Adjust main wallet</h3>
+            <Segmented
+              label="Adjustment"
+              value={action}
+              onChange={(v) => (setAction(v), setCategory((v === "credit" ? CREDIT : DEBIT)[0]))}
+              options={[
+                { value: "credit", label: "Credit" },
+                { value: "debit", label: "Debit" },
+              ]}
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <SelectField label="Category" value={category} onChange={setCategory} options={(action === "credit" ? CREDIT : DEBIT).map((c) => ({ value: c, label: c }))} />
+              <Field label="Amount (USDT)" type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
+            </div>
+            <Field label="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} maxLength={200} />
+            <Btn loading={busy === "adjust"} onClick={adjust}>
+              {action === "credit" ? "Credit wallet" : "Debit wallet"}
+            </Btn>
+          </section>
+
+          <section className="grid grid-cols-[1fr_auto] items-end gap-3">
+            <Field label="Lock-in balance (trade)" type="number" min="0" step="0.01" value={lockIn} onChange={(e) => setLockIn(e.target.value)} />
+            <Btn
+              variant="secondary"
+              loading={busy === "lock"}
+              onClick={() => {
+                const n = Number(lockIn);
+                if (!Number.isFinite(n) || n < 0) return setMsg({ tone: "danger", text: "Enter a valid lock-in amount." });
+                run("lock", () => updateLpUserLockInBalance(user.id, n), "Lock-in balance updated.");
+              }}
+            >
+              Save
+            </Btn>
+          </section>
+
+          <section className="grid grid-cols-[1fr_auto] items-end gap-3">
+            <Field label="Set new password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} hint="At least 8 characters. Share it securely." />
+            <Btn
+              variant="secondary"
+              className="mb-[26px]"
+              loading={busy === "pw"}
+              onClick={() => {
+                if (password.trim().length < 8) return setMsg({ tone: "danger", text: "The password needs at least 8 characters." });
+                run("pw", () => updateLpUserPassword(user.id, password.trim()), "Password updated.").then(() => setPassword(""));
+              }}
+            >
+              Set
+            </Btn>
+          </section>
+        </div>
+      </div>
+      {msg && <Alert tone={msg.tone} className="mt-5">{msg.text}</Alert>}
+    </Dialog>
+  );
+}
+
+/* ── Create LP account ─────────────────────────────────────────────── */
+
+function CreateUserDialog({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: (u: AdminLpUser) => void }) {
+  const [form, setForm] = useState({ fullName: "", email: "", phone: "", password: "" });
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const submit = async (e?: FormEvent) => {
+    e?.preventDefault();
+    if (form.fullName.trim().length < 2) return setError("Enter the full name.");
+    if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) return setError("Enter a valid email.");
+    if (form.password.length < 8) return setError("The password needs at least 8 characters.");
+    setBusy(true);
+    setError("");
+    try {
+      const u = await createLpUser({ fullName: form.fullName.trim(), email: form.email.trim(), phone: form.phone.trim() || undefined, password: form.password });
+      setForm({ fullName: "", email: "", phone: "", password: "" });
+      onCreated(u);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn’t create the account.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      title="New LP account"
+      footer={
+        <>
+          <Btn variant="secondary" onClick={onClose}>
+            Cancel
+          </Btn>
+          <Btn onClick={() => submit()} loading={busy}>
+            Create account
+          </Btn>
+        </>
+      }
+    >
+      <form onSubmit={submit} className="flex flex-col gap-4">
+        <Field label="Full name" value={form.fullName} onChange={set("fullName")} autoComplete="off" />
+        <Field label="Email" type="email" value={form.email} onChange={set("email")} autoComplete="off" />
+        <Field label="Mobile (optional)" type="tel" value={form.phone} onChange={set("phone")} autoComplete="off" />
+        <Field label="Temporary password" type="password" value={form.password} onChange={set("password")} autoComplete="new-password" hint="They’ll be asked to change it at first sign-in." />
+        {error && <Alert>{error}</Alert>}
+        <button type="submit" hidden />
+      </form>
+    </Dialog>
+  );
 }

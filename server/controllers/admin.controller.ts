@@ -680,7 +680,7 @@ export const sendPushToAllUsers = asyncHandler(async (req: Request, res: Respons
 
   const title = typeof req.body.title === "string" && req.body.title.trim()
     ? req.body.title.trim()
-    : "L Max Update";
+    : "New notification";
   const body = typeof req.body.body === "string" && req.body.body.trim()
     ? req.body.body.trim()
     : "You have a new notification.";
@@ -764,7 +764,7 @@ export const sendPushToSingleUser = asyncHandler(async (req: Request, res: Respo
 
   const title = typeof req.body.title === "string" && req.body.title.trim()
     ? req.body.title.trim()
-    : "L Max Update";
+    : "New notification";
   const body = typeof req.body.body === "string" && req.body.body.trim()
     ? req.body.body.trim()
     : "You have a new notification.";

@@ -26,7 +26,7 @@ importScripts("https://www.gstatic.com/firebasejs/12.10.0/firebase-messaging-com
 
   messaging.onBackgroundMessage(function (payload) {
     const notificationTitle =
-      payload.notification?.title || payload.data?.title || "L Max Notification";
+      payload.notification?.title || payload.data?.title || "New notification";
     const notificationOptions = {
       body: payload.notification?.body || payload.data?.body || "You have a new update.",
       icon: payload.notification?.icon || "/favicon.ico",

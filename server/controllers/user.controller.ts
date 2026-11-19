@@ -248,7 +248,7 @@ export const sendMyTestPush = asyncHandler(async (req: Request, res: Response) =
 
   const title = typeof req.body.title === "string" && req.body.title.trim()
     ? req.body.title.trim()
-    : "L Max Test Notification";
+    : "Test notification";
   const body = typeof req.body.body === "string" && req.body.body.trim()
     ? req.body.body.trim()
     : "Push notifications are configured correctly.";

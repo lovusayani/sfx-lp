@@ -2,102 +2,70 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Diamond, Lock } from "lucide-react";
 
-import { BrandLogo } from "@/components/branding/BrandLogo";
-import { loginUser } from "@/mvc/admin/controllers/auth.controller";
-import { clearSession } from "@/mvc/admin/models/session.model";
+import { useBranding } from "@/components/sfx/useBranding";
+import { Alert, Button, Field } from "@/components/sfx/ui";
 import { useHydratedUser } from "@/hooks/useHydratedUser";
+import { loginUser } from "@/services/auth.service";
+import { clearSession } from "@/services/session.service";
 
+/** Admin sign-in (separate from the client app). */
 export default function AdminLoginPage() {
-    const router = useRouter();
-    const { loading, user } = useHydratedUser();
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const [error, setError] = useState("");
-    const [submitting, setSubmitting] = useState(false);
+  const router = useRouter();
+  const { appName, shortName } = useBranding();
+  const { loading, user } = useHydratedUser();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
 
-    useEffect(() => {
-        if (loading) {
-            return;
-        }
+  useEffect(() => {
+    if (!loading && user) router.replace(user.role === "admin" ? "/admin" : "/dashboard");
+  }, [loading, router, user]);
 
-        if (user) {
-            const currentRole = String((user as { role?: string }).role || "");
-            router.replace(currentRole === "admin" ? "/admin" : "/dashboard");
-        }
-    }, [loading, router, user]);
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setBusy(true);
+    try {
+      const u = await loginUser(email, password);
+      if (u.role !== "admin") {
+        clearSession();
+        throw new Error("This sign-in is for administrators only.");
+      }
+      router.replace("/admin");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Sign-in failed.");
+    } finally {
+      setBusy(false);
+    }
+  };
 
-    const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        setError("");
-        setSubmitting(true);
-
-        try {
-            const loggedInUser = await loginUser(email, password);
-            const loggedInRole = String((loggedInUser as { role?: string }).role || "");
-
-            if (loggedInRole !== "admin") {
-                clearSession();
-                throw new Error("Admin access only");
-            }
-
-            router.replace("/admin");
-        } catch (submitError) {
-            setError(submitError instanceof Error ? submitError.message : "Admin login failed");
-        } finally {
-            setSubmitting(false);
-        }
-    };
-
-    return (
-        <div className="flex min-h-screen items-center justify-center px-4">
-            <form onSubmit={onSubmit} className="card w-full max-w-md space-y-4">
-                {/* ** Header ** */}
-                <div className="text-center">
-                    <div className="mb-4 flex justify-center">
-                        <BrandLogo
-                            variant="light"
-                            fallbackText="LMAX Admin"
-                            className="h-[74px] w-auto max-w-[270px] object-contain"
-                            wrapperClassName="text-2xl font-semibold text-white"
-                        />
-                    </div>
-                    <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Admin Panel</p>
-                    <h1 className="mt-2 text-2xl font-semibold">Admin Login</h1>
-                </div>
-
-                {/* ** Email Field ** */}
-                <div className="space-y-2">
-                    <label className="text-sm text-zinc-300">Email</label>
-                    <input
-                        className="input"
-                        type="email"
-                        value={email}
-                        onChange={(event) => setEmail(event.target.value)}
-                        required
-                    />
-                </div>
-
-                {/* ** Password Field ** */}
-                <div className="space-y-2">
-                    <label className="text-sm text-zinc-300">Password</label>
-                    <input
-                        className="input"
-                        type="password"
-                        value={password}
-                        onChange={(event) => setPassword(event.target.value)}
-                        required
-                    />
-                </div>
-
-                {/* ** Error Message ** */}
-                {error && <p className="rounded-lg bg-red-500/10 p-2 text-sm text-red-300">{error}</p>}
-
-                {/* ** Submit Button ** */}
-                <button disabled={submitting} className="btn-primary w-full">
-                    {submitting ? "Signing in..." : "Login as Admin"}
-                </button>
-            </form>
+  return (
+    <div className="sfx sfx-page flex items-center justify-center px-4 py-10">
+      <form onSubmit={submit} className="sfx-enter w-full max-w-[420px] rounded-[28px] border border-sfx-border bg-sfx-surface-2/50 p-7 md:p-9">
+        <div className="mb-8 flex items-center gap-3">
+          <Diamond size={28} className="text-sfx-gold" strokeWidth={2.2} />
+          <span className="text-[15px] font-bold tracking-[0.04em] text-sfx-text">
+            {shortName.toUpperCase()} <span className="text-sfx-muted">/</span> ADMIN
+          </span>
         </div>
-    );
+        <h1 className="text-[28px] font-bold text-sfx-text">Command center</h1>
+        <p className="mt-1 text-[13px] text-sfx-muted">{appName} • Administrator sign-in</p>
+
+        <div className="mt-7 flex flex-col gap-4">
+          <Field label="Email" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <Field label="Password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          {error && <Alert>{error}</Alert>}
+          <Button type="submit" loading={busy} className="mt-2">
+            Sign in
+          </Button>
+        </div>
+        <p className="mt-6 flex items-center justify-center gap-1.5 text-[12px] text-sfx-muted">
+          <Lock size={12} /> Secure console • access is logged
+        </p>
+      </form>
+    </div>
+  );
 }

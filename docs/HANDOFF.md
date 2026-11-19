@@ -5,7 +5,7 @@ State as of 2026-11-19, branch `claude/friendly-noether-u03gym`. Read this first
 ## Done
 - **Phase 0–2**: repo isolated from Curreex/FXIncap/SuimFX; design system from Figma; screens
   01–18 (welcome → dashboard), History page, responsive phone/tablet/desktop, light theme.
-- **Brand**: "Swiss Liquidity" / short "SLq", editable in Admin → Setup (`Branding.appName/shortName`).
+- **Brand**: "Swiss Liquidity" / short "SLq", editable in Admin → Settings → Branding (`Branding.appName/shortName`).
 - **Security**: deploy webhook gated, demo user dev-only, strong prod secrets, KYC + deposit proofs
   in `private_uploads` served only via `GET /api/files/private/:name` (owner/admin), secure cookies on HTTPS.
 - **Curreex DB backup**: taken 2026-11-19 15:18 UTC with `scripts/ops/backup-curreex-db.sh`
@@ -16,12 +16,19 @@ State as of 2026-11-19, branch `claude/friendly-noether-u03gym`. Read this first
   legacy `design/brokerview/*` and `TopbarPageFrame` are no longer used by the user app), performance,
   reports, KYC documents, notices, settings, support/help/about/FAQ. Shared pieces in
   `components/sfx/kit.tsx`, `trade.tsx`, `ContentPage.tsx`. API no longer falls back to demo deposit
-  addresses — admin must set each network's address in Payment setup or that network is disabled.
+  addresses — admin must set each network's address in Admin → Settings → Deposit wallets or that network is disabled.
 - **Staging first went LIVE (2026-11-19 16:31 UTC)**: bundle `202611191600-0a39249` on http://168.144.73.76:8080
   (`/welcome`, `/admin/login` → 200; `/api/health` → ok). All 4 units active, 0 restarts.
   Curreex HTTP status unchanged (301 before/after). RAM used ~590/961 MB, swap ~200 MB;
   sfx-api ~75 MB, sfx-web ~55 MB. Admin login `admin@swissliquidity.com`; password only in the server
   `.env` (`ADMIN_PASSWORD=`, readable by root/swissliq) and in a private file on the owner's PC.
+- **Admin rebuilt (2026-11-19, Aurum admin designs in `docs/designs/admin/*.zip`)**: the old
+  LMAX-era admin UI is gone. Sections: Overview, Users (wallet adjust, lock-in, password, push),
+  KYC Reviews, Deposits, Withdrawals (+ payout wallets), Trading (order report, trade results =
+  old prof-loss, charges, API sources), Reports (P&L PDFs), Support (Support/FAQ/Help/About content),
+  Notices (+ optional push), Settings (branding, deposit wallets, data export/reset). Shared UI in
+  `client/components/admin/ui.tsx`; old URLs redirect via `next.config.ts`. No support-ticket or
+  audit-log API exists yet, so those parts of the design are not built.
 
 ## Deployment design (same droplet as Curreex, Curreex untouched)
 - Droplet `curreex-prod` (DigitalOcean, blr1, 1 vCPU / 1 GB / 25 GB, Ubuntu 24.04, IP 168.144.73.76),
@@ -52,7 +59,7 @@ State as of 2026-11-19, branch `claude/friendly-noether-u03gym`. Read this first
 2. Domain + HTTPS (owner to provide domain and DNS provider) → then close port 8080 / remove
    `swissliq-test.conf`, set `COOKIE_SECURE=true` and `CLIENT_URL` in `shared/.env`.
 3. Resend email (sign-up, reset, OTP, 2FA).
-4. PWA manifest/service worker; admin redesign (later, owner to discuss).
+4. PWA manifest/service worker. Optional: support tickets + admin audit log (needs new API).
 
 ## Rules agreed with the owner
 - Never modify, restart or deploy to Curreex; never touch its database.
