@@ -229,7 +229,7 @@ After=network-online.target
 [Service]
 Type=oneshot
 User=$U
-Environment=SFX_CHANNEL=$CHANNEL SFX_REPO=$REPO PATH=$H/.node/bin:/usr/local/bin:/usr/bin:/bin
+Environment=SFX_CHANNEL=$CHANNEL SFX_REPO=$REPO SFX_SOURCE=${SFX_SOURCE:-branch} PATH=$H/.node/bin:/usr/local/bin:/usr/bin:/bin
 ExecStart=$APP/bin/swissliq-deploy.sh
 StandardOutput=append:$APP/logs/deploy.log
 StandardError=append:$APP/logs/deploy.log
@@ -326,11 +326,11 @@ fi
 
 # ── First deploy ─────────────────────────────────────────────────────────────
 say "First deploy"
-if sudo -u "$U" env SFX_CHANNEL=$CHANNEL SFX_REPO=$REPO PATH="$H/.node/bin:/usr/local/bin:/usr/bin:/bin" "$APP/bin/swissliq-deploy.sh"; then
+if sudo -u "$U" env SFX_CHANNEL=$CHANNEL SFX_REPO=$REPO SFX_SOURCE=${SFX_SOURCE:-branch} PATH="$H/.node/bin:/usr/local/bin:/usr/bin:/bin" "$APP/bin/swissliq-deploy.sh"; then
   if [[ -f "$APP/state/deployed.version" ]]; then
     ok "Running version $(cat "$APP/state/deployed.version")"
   else
-    note "No build published on GitHub yet — the server checks every 2 minutes and deploys automatically once one appears."
+    note "No build published yet — the server checks every 2 minutes and deploys automatically once one appears."
   fi
 else
   note "First deploy did not finish — see $APP/logs/api.log and web.log"

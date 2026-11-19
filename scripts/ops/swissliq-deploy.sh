@@ -23,14 +23,27 @@ mkdir -p "$STATE" "$APP/releases"
 exec 9>"$STATE/deploy.lock"
 flock -n 9 || { log "another deploy is running"; exit 0; }
 
-meta=$(curl -fsSL --max-time 20 -H "Accept: application/vnd.github+json" \
-  "https://api.github.com/repos/$REPO/releases/tags/$CHANNEL-latest") || { log "no release yet"; exit 0; }
-
-read -r TAR_URL SHA_URL < <(python3 -c '
+# Where builds come from:
+#   branch  (default) — branch "deploy-<channel>" holds the latest bundle (built outside GitHub Actions)
+#   release           — GitHub release "<channel>-latest" (built by GitHub Actions)
+SOURCE="${SFX_SOURCE:-branch}"
+if [[ "$SOURCE" == "release" ]]; then
+  meta=$(curl -fsSL --max-time 20 -H "Accept: application/vnd.github+json" \
+    "https://api.github.com/repos/$REPO/releases/tags/$CHANNEL-latest") || { log "no release yet"; exit 0; }
+  read -r TAR_URL SHA_URL < <(python3 -c '
 import json,sys
 a={x["name"]:x["browser_download_url"] for x in json.load(sys.stdin).get("assets",[])}
 print(a.get("sfx-lp.tar.gz",""), a.get("sfx-lp.tar.gz.sha256",""))' <<<"$meta")
-[[ -n "$TAR_URL" && -n "$SHA_URL" ]] || { log "release has no bundle yet"; exit 0; }
+else
+  # Resolve the branch to an exact commit so CDN caching can never serve a stale file.
+  COMMIT=$(curl -fsSL --max-time 20 -H "Accept: application/vnd.github+json" \
+    "https://api.github.com/repos/$REPO/commits/deploy-$CHANNEL" | python3 -c 'import json,sys;print(json.load(sys.stdin)["sha"])') \
+    || { log "no deploy-$CHANNEL branch yet"; exit 0; }
+  [[ "$COMMIT" =~ ^[0-9a-f]{40}$ ]] || { log "could not resolve deploy-$CHANNEL"; exit 0; }
+  TAR_URL="https://raw.githubusercontent.com/$REPO/$COMMIT/sfx-lp.tar.gz"
+  SHA_URL="https://raw.githubusercontent.com/$REPO/$COMMIT/sfx-lp.tar.gz.sha256"
+fi
+[[ -n "$TAR_URL" && -n "$SHA_URL" ]] || { log "no bundle published yet"; exit 0; }
 
 WANT=$(curl -fsSL --max-time 20 "$SHA_URL" | tr -d '[:space:]')
 [[ "$WANT" =~ ^[0-9a-f]{64}$ ]] || { log "bad checksum file"; exit 1; }

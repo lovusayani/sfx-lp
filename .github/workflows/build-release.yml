@@ -5,10 +5,10 @@ name: Build release
 # checksum, deploys it and rolls back automatically if health checks fail.
 # The bundle contains code only — no secrets (those live in the server's .env).
 
+# Push trigger is paused while GitHub Actions is locked on the account (billing);
+# builds are published with scripts/ops/publish-bundle.sh instead. Re-enable later:
+#   push: { branches: [main], paths-ignore: ["**.md", "docs/**"] }
 on:
-  push:
-    branches: [main, "claude/friendly-noether-u03gym"]
-    paths-ignore: ["**.md", "docs/**"]
   workflow_dispatch:
 
 permissions:
