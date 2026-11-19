@@ -1,6 +1,6 @@
 # Handoff — Swiss Liquidity (sfx-lp)
 
-State as of 2026-11-19, branch `claude/friendly-noether-u03gym`. Read this first in a new session.
+State as of 2026-11-20 (session closed), branch `claude/friendly-noether-u03gym`. Read this first in a new session.
 
 ## Done
 - **Phase 0–2**: repo isolated from Curreex/FXIncap/SuimFX; design system from Figma; screens
@@ -38,6 +38,15 @@ State as of 2026-11-19, branch `claude/friendly-noether-u03gym`. Read this first
 - Deploy agent self-updates from each bundle; `publish-bundle.sh` strips CRLF from `ops/*.sh`
   (a Windows-built bundle once broke it with a CRLF shebang).
 
+## Live on staging now
+- Release `202611191815-33d0586` (admin rebuild + onboarding design fix + Resend email), deployed
+  2026-11-19 18:29 UTC. `sfx-api`/`sfx-web` active, `/api/health` 200, Curreex 301 (unchanged).
+- Owner still to test end to end: sign-up code, forgot password link, sign-in code (only the Resend
+  account owner's Gmail receives mail until a domain is verified). The new admin hasn't been checked
+  in a browser yet; first full run of real email is the owner's test.
+- Updated app designs (`docs/designs/app/*.zip`: Welcome, Onboarding 2–3, Sign in, Create account)
+  were compared with the app; only onboarding 2–3 differed and is fixed.
+
 ## Deployment design (same droplet as Curreex, Curreex untouched)
 - Droplet `curreex-prod` (DigitalOcean, blr1, 1 vCPU / 1 GB / 25 GB, Ubuntu 24.04, IP 168.144.73.76),
   swap 2 GB already present, Nginx with `sites-enabled/curreex.com.conf`. No DO firewall, no DO backups.
@@ -61,7 +70,7 @@ State as of 2026-11-19, branch `claude/friendly-noether-u03gym`. Read this first
 - One-time setup: `scripts/ops/setup-swissliq.sh` (run as root; idempotent; never touches Curreex).
 
 ## Next steps (in order)
-1. Owner review of Phase 3 on staging; then remove the unused legacy UI (`design/`, old dashboard
+1. Owner tests email + new admin on staging and reports issues. Then remove the unused legacy UI (`design/`, old dashboard
    components). Publish with `scripts/ops/publish-bundle.sh staging` (agent deploys within ~2 min).
    Windows bundles include `sharp-win32` (unused: no next/image) — harmless.
 2. Domain + HTTPS (owner to provide domain and DNS provider) → then close port 8080 / remove
