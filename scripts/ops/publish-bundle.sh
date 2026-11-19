@@ -28,6 +28,8 @@ cp -r client/.next/standalone/. "$B/web/"
 cp -r client/.next/static "$B/web/.next/static"
 cp -r client/public "$B/web/public"
 cp scripts/ops/swissliq-deploy.sh "$B/ops/"
+# Windows checkouts add CRLF; a CRLF shebang breaks the deploy agent on Linux.
+sed -i 's/\r$//' "$B"/ops/*.sh
 echo "$VERSION" > "$B/VERSION"
 echo "$COMMIT" > "$B/COMMIT"
 tar -C "$WORK/bundle" -czf "$WORK/sfx-lp.tar.gz" sfx-lp
