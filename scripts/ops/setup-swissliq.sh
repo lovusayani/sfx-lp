@@ -23,6 +23,7 @@ API_PORT=5100
 WEB_PORT=3100
 TEST_PORT=8080
 REPO=lovusayani/sfx-lp
+REF=${SFX_REF:-main}   # git commit/branch the setup files are taken from
 
 say()  { printf '\n\033[1;33m▶ %s\033[0m\n' "$*"; }
 ok()   { printf '\033[1;32m  ✓ %s\033[0m\n' "$*"; }
@@ -246,7 +247,7 @@ WantedBy=timers.target
 EOF
 echo "$U ALL=(root) NOPASSWD: /usr/bin/systemctl restart sfx-api.service sfx-web.service" > /etc/sudoers.d/swissliq
 chmod 440 /etc/sudoers.d/swissliq && visudo -cq -f /etc/sudoers.d/swissliq
-curl -fsSL "https://raw.githubusercontent.com/$REPO/$CHANNEL-latest/scripts/ops/swissliq-deploy.sh" -o "$APP/bin/swissliq-deploy.sh" \
+curl -fsSL "https://raw.githubusercontent.com/$REPO/$REF/scripts/ops/swissliq-deploy.sh" -o "$APP/bin/swissliq-deploy.sh" \
   || fail "Could not download the deploy agent."
 chown "$U:$U" "$APP/bin/swissliq-deploy.sh" && chmod 750 "$APP/bin/swissliq-deploy.sh"
 cat > /etc/logrotate.d/swissliq <<EOF
@@ -326,7 +327,11 @@ fi
 # ── First deploy ─────────────────────────────────────────────────────────────
 say "First deploy"
 if sudo -u "$U" env SFX_CHANNEL=$CHANNEL SFX_REPO=$REPO PATH="$H/.node/bin:/usr/local/bin:/usr/bin:/bin" "$APP/bin/swissliq-deploy.sh"; then
-  ok "Running version $(cat "$APP/state/deployed.version" 2>/dev/null || echo '?')"
+  if [[ -f "$APP/state/deployed.version" ]]; then
+    ok "Running version $(cat "$APP/state/deployed.version")"
+  else
+    note "No build published on GitHub yet — the server checks every 2 minutes and deploys automatically once one appears."
+  fi
 else
   note "First deploy did not finish — see $APP/logs/api.log and web.log"
 fi
