@@ -11,7 +11,13 @@ State as of 2026-11-19, branch `claude/friendly-noether-u03gym`. Read this first
 - **Curreex DB backup**: taken 2026-11-19 15:18 UTC with `scripts/ops/backup-curreex-db.sh`
   (encrypted copy in `/root/curreex-backups/` on the droplet + downloaded by the owner).
   ⚠ The backup password was exposed in chat — owner should re-run the backup with a new password.
-- **Staging is LIVE (2026-11-19 16:31 UTC)**: bundle `202611191600-0a39249` on http://168.144.73.76:8080
+- **Phase 3 (2026-11-19, live as `202611191653-10627d1`)**: wallet (transfer sheet), deposit (3-step +
+  proof), withdraw (payout wallet sheet), trade overview + open/closed positions (now inside AppShell;
+  legacy `design/brokerview/*` and `TopbarPageFrame` are no longer used by the user app), performance,
+  reports, KYC documents, notices, settings, support/help/about/FAQ. Shared pieces in
+  `components/sfx/kit.tsx`, `trade.tsx`, `ContentPage.tsx`. API no longer falls back to demo deposit
+  addresses — admin must set each network's address in Payment setup or that network is disabled.
+- **Staging first went LIVE (2026-11-19 16:31 UTC)**: bundle `202611191600-0a39249` on http://168.144.73.76:8080
   (`/welcome`, `/admin/login` → 200; `/api/health` → ok). All 4 units active, 0 restarts.
   Curreex HTTP status unchanged (301 before/after). RAM used ~590/961 MB, swap ~200 MB;
   sfx-api ~75 MB, sfx-web ~55 MB. Admin login `admin@swissliquidity.com`; password only in the server
@@ -40,9 +46,9 @@ State as of 2026-11-19, branch `claude/friendly-noether-u03gym`. Read this first
 - One-time setup: `scripts/ops/setup-swissliq.sh` (run as root; idempotent; never touches Curreex).
 
 ## Next steps (in order)
-1. Phase 3: redesign wallet, deposit, withdraw, brokerview/trade, performance, reports, notices,
-   profile, settings, support, FAQ/about pages with `components/sfx/*`; publish with
-   `scripts/ops/publish-bundle.sh staging` (agent deploys within ~2 min; watch `logs/deploy.log`).
+1. Owner review of Phase 3 on staging; then remove the unused legacy UI (`design/`, old dashboard
+   components). Publish with `scripts/ops/publish-bundle.sh staging` (agent deploys within ~2 min).
+   Windows bundles include `sharp-win32` (unused: no next/image) — harmless.
 2. Domain + HTTPS (owner to provide domain and DNS provider) → then close port 8080 / remove
    `swissliq-test.conf`, set `COOKIE_SECURE=true` and `CLIENT_URL` in `shared/.env`.
 3. Resend email (sign-up, reset, OTP, 2FA).
