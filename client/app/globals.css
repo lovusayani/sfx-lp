@@ -395,7 +395,7 @@ html.light .sfx {
   padding-bottom: max(16px, env(safe-area-inset-bottom));
 }
 
-.sfx :focus-visible {
+.sfx :focus-visible:not(input):not(select):not(textarea) {
   outline: 2px solid var(--sfx-gold);
   outline-offset: 2px;
 }
