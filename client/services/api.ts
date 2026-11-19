@@ -57,18 +57,21 @@ interface ApiOptions {
 
 export class ApiError extends Error {
   status: number;
+  /** Parsed JSON body of the error response (e.g. { code, email }). */
+  data: Record<string, unknown>;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, data: Record<string, unknown> = {}) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.data = data;
   }
 }
 
 const parseResponse = async <T>(response: Response): Promise<T> => {
   const data = (await response.json().catch(() => ({}))) as T & { message?: string };
   if (!response.ok) {
-    throw new ApiError((data as { message?: string }).message || "Request failed", response.status);
+    throw new ApiError((data as { message?: string }).message || "Request failed", response.status, data as Record<string, unknown>);
   }
   return data;
 };

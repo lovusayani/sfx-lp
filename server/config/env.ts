@@ -48,6 +48,10 @@ export const env = {
   tradesApiName: process.env.TRADES_API_NAME || "Default trade source",
   tradesApiBaseUrl: process.env.TRADES_API_BASE_URL || "",
   tradesApiKey: process.env.TRADES_API_KEY || "",
+  // Transactional email via Resend (https://resend.com). Without a key, email features answer 501.
+  resendApiKey: process.env.RESEND_API_KEY || "",
+  // "Name <address>". Until a domain is verified in Resend, onboarding@resend.dev only reaches the account owner.
+  emailFrom: process.env.EMAIL_FROM || "onboarding@resend.dev",
 };
 
 export const validateEnv = (): void => {

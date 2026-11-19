@@ -4,13 +4,49 @@ import { AuthSession, User } from "@/types";
 
 let inFlightHydration: Promise<User | null> | null = null;
 
+/** Password was accepted but an emailed code is needed (sign-in code, or unconfirmed sign-up). */
+export class CodeRequiredError extends Error {
+  constructor(message: string, public email: string, public purpose: "login" | "register") {
+    super(message);
+  }
+}
+
+export const verifyRoute = (e: CodeRequiredError) => `/verify?email=${encodeURIComponent(e.email)}&purpose=${e.purpose}`;
+
 export const loginUser = async (email: string, password: string): Promise<User> => {
-  const data = await apiFetch<AuthSession>("/auth/login", {
+  let data: AuthSession | { otpRequired: true; email: string };
+  try {
+    data = await apiFetch<AuthSession | { otpRequired: true; email: string }>("/auth/login", {
+      method: "POST",
+      body: { email, password },
+      auth: false,
+    });
+  } catch (error) {
+    if (error instanceof ApiError && error.data.code === "EMAIL_NOT_VERIFIED") {
+      throw new CodeRequiredError(error.message, String(error.data.email || email), "register");
+    }
+    throw error;
+  }
+  if ("otpRequired" in data) throw new CodeRequiredError("We emailed you a sign-in code.", data.email, "login");
+  setSession(data);
+  return data.user;
+};
+
+/** Sign-in with an emailed code: returns the user once the code is accepted. */
+export const verifyLoginCode = async (email: string, code: string): Promise<User> => {
+  const data = await apiFetch<AuthSession>("/auth/verify-otp", {
     method: "POST",
-    body: { email, password },
+    body: { email, code, purpose: "login" },
     auth: false,
   });
   setSession(data);
+  return data.user;
+};
+
+/** Turn the emailed sign-in code on or off. */
+export const setTwoFactorEmail = async (enabled: boolean): Promise<User> => {
+  const data = await apiFetch<{ user: User }>("/auth/two-factor", { method: "POST", body: { enabled } });
+  updateSessionUser(data.user);
   return data.user;
 };
 

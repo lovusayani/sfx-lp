@@ -6,7 +6,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AuthLayout } from "@/components/sfx/AuthLayout";
 import { OtpInput } from "@/components/sfx/OtpInput";
 import { Alert, Button, Chip, Display, TopBar } from "@/components/sfx/ui";
-import { FeatureUnavailableError, resendOtpCode, verifyOtpCode } from "@/services/auth.service";
+import { FeatureUnavailableError, resendOtpCode, verifyLoginCode, verifyOtpCode } from "@/services/auth.service";
+import { getNextRoute } from "@/services/session.service";
 
 const CODE_TTL_SECONDS = 180;
 
@@ -40,8 +41,14 @@ function VerifyInner() {
     setNotice("");
     setSubmitting(true);
     try {
-      await verifyOtpCode(email, code, purpose);
-      router.replace(purpose === "register" ? "/login" : "/");
+      if (purpose === "login") {
+        const signedIn = await verifyLoginCode(email, code);
+        router.replace(getNextRoute(signedIn));
+      } else {
+        await verifyOtpCode(email, code, purpose);
+        setNotice("Email confirmed. Taking you to sign in…");
+        setTimeout(() => router.replace("/login"), 1200);
+      }
     } catch (e) {
       if (e instanceof FeatureUnavailableError) setNotice(e.message);
       else setError(e instanceof Error ? e.message : "That code didn't work.");

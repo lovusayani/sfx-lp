@@ -38,6 +38,12 @@ export interface IUser extends Document {
     alerts: boolean;
   };
   refreshTokenHash?: string;
+  /** false only for self-registered accounts that haven't confirmed their email yet. */
+  emailVerified: boolean;
+  /** Ask for an emailed code at every sign-in. */
+  twoFactorEmail: boolean;
+  passwordResetHash?: string;
+  passwordResetExpires?: Date;
   createdBy?: Schema.Types.ObjectId;
   createdAt?: Date;
   updatedAt?: Date;
@@ -83,6 +89,10 @@ const userSchema = new Schema<IUser>(
       alerts: { type: Boolean, default: true },
     },
     refreshTokenHash: { type: String },
+    emailVerified: { type: Boolean, default: true },
+    twoFactorEmail: { type: Boolean, default: false },
+    passwordResetHash: { type: String },
+    passwordResetExpires: { type: Date },
     createdBy: { type: Schema.Types.ObjectId, ref: "User" },
   },
   { timestamps: true }

@@ -29,6 +29,8 @@ export interface User {
     selfie?: string;
   };
   settings: UserSettings;
+  /** Emailed code required at every sign-in. */
+  twoFactorEmail?: boolean;
 }
 
 export interface AuthSession {

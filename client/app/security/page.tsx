@@ -7,6 +7,9 @@ import { Fingerprint, Mail, Smartphone, type LucideIcon } from "lucide-react";
 import { AuthLayout } from "@/components/sfx/AuthLayout";
 import { cn } from "@/components/sfx/cn";
 import { Alert, Button, Chip, Display, TopBar } from "@/components/sfx/ui";
+import { useHydratedUser } from "@/hooks/useHydratedUser";
+import { setTwoFactorEmail } from "@/services/auth.service";
+import { getNextRoute } from "@/services/session.service";
 
 type Method = "authenticator" | "email" | "biometric";
 
@@ -33,10 +36,31 @@ export default function SecurityPage() {
   const router = useRouter();
   const [method, setMethod] = useState<Method>("authenticator");
   const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const { user } = useHydratedUser();
 
-  const onContinue = () => {
-    // Two-factor enrolment needs new API endpoints; the screen is ready for when they are approved.
-    setNotice("Two-factor setup will be available soon. Your choice is noted — you can continue for now.");
+  const onContinue = async () => {
+    setError("");
+    setNotice("");
+    if (method !== "email") {
+      // Authenticator apps and biometrics need more backend work; email codes work today.
+      setNotice("This method is coming soon. Choose Email verification to protect your account now.");
+      return;
+    }
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+    setBusy(true);
+    try {
+      await setTwoFactorEmail(true);
+      setNotice(`Done. We'll email a code to ${user.email} each time you sign in.`);
+      setTimeout(() => router.replace(getNextRoute(user)), 1400);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't turn on email codes.");
+      setBusy(false);
+    }
   };
 
   return (
@@ -81,13 +105,14 @@ export default function SecurityPage() {
         })}
       </div>
 
+      {error && <Alert>{error}</Alert>}
       {notice && <Alert tone="info">{notice}</Alert>}
-      <Button onClick={onContinue} className="mt-1">
+      <Button onClick={onContinue} loading={busy} className="mt-1">
         {CTA[method]}
       </Button>
       <button
         type="button"
-        onClick={() => router.replace("/")}
+        onClick={() => router.replace(user ? getNextRoute(user) : "/")}
         className="self-start text-[13px] font-medium text-sfx-muted hover:text-sfx-text"
       >
         Set this up later

@@ -8,7 +8,7 @@ import { AuthLayout } from "@/components/sfx/AuthLayout";
 import { BrandName } from "@/components/sfx/Brand";
 import { Alert, Button, ButtonLink, Checkbox, Display, Field, TopBar } from "@/components/sfx/ui";
 import { useHydratedUser } from "@/hooks/useHydratedUser";
-import { loginUser } from "@/services/auth.service";
+import { CodeRequiredError, loginUser, verifyRoute } from "@/services/auth.service";
 import { enablePushNotifications, hasFirebasePushConfig } from "@/services/push-notifications.service";
 import { getNextRoute, getRememberDevice, setRememberDevice } from "@/services/session.service";
 
@@ -73,6 +73,7 @@ export default function LoginPage() {
       await Promise.allSettled([requestPushPermission(Boolean(signedIn.settings?.alerts)), requestCameraPermission()]);
       router.replace(getNextRoute(signedIn));
     } catch (e) {
+      if (e instanceof CodeRequiredError) return router.push(verifyRoute(e));
       setError(e instanceof Error ? e.message : "Sign in failed. Please try again.");
       setSubmitting(false);
     }

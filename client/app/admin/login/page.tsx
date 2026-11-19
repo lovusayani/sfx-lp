@@ -7,7 +7,7 @@ import { Diamond, Lock } from "lucide-react";
 import { useBranding } from "@/components/sfx/useBranding";
 import { Alert, Button, Field } from "@/components/sfx/ui";
 import { useHydratedUser } from "@/hooks/useHydratedUser";
-import { loginUser } from "@/services/auth.service";
+import { CodeRequiredError, loginUser, verifyRoute } from "@/services/auth.service";
 import { clearSession } from "@/services/session.service";
 
 /** Admin sign-in (separate from the client app). */
@@ -36,6 +36,7 @@ export default function AdminLoginPage() {
       }
       router.replace("/admin");
     } catch (err) {
+      if (err instanceof CodeRequiredError) return router.push(verifyRoute(err));
       setError(err instanceof Error ? err.message : "Sign-in failed.");
     } finally {
       setBusy(false);

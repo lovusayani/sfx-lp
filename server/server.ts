@@ -153,6 +153,15 @@ const bootstrap = async () => {
   });
 
   app.use("/api/auth", authRateLimit);
+  // Endpoints that send email: tighter, so they can't be used to spam inboxes.
+  const emailRateLimit = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 8,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { message: "Too many email requests. Please wait a few minutes and try again." },
+  });
+  app.use(["/api/auth/register", "/api/auth/resend-otp", "/api/auth/forgot-password"], emailRateLimit);
   app.use("/uploads", express.static(path.join(process.cwd(), env.uploadDir)));
 
   app.get("/api/health", (_req, res) => {

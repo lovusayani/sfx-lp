@@ -7,6 +7,7 @@ import { Alert, Button, Display, Eyebrow, TopBar } from "@/components/sfx/ui";
 import { setFrontendTheme } from "@/components/theme/FrontendThemeController";
 import { useHydratedUser } from "@/hooks/useHydratedUser";
 import { disablePushNotifications, enablePushNotifications } from "@/services/push-notifications.service";
+import { setTwoFactorEmail } from "@/services/auth.service";
 import { updateSettings } from "@/services/user.service";
 import { UserSettings } from "@/types";
 
@@ -23,6 +24,7 @@ export default function SettingsPage() {
   const [form, setForm] = useState<UserSettings>(DEFAULTS);
   const [message, setMessage] = useState<{ tone: "success" | "danger"; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
+  const [twoFaBusy, setTwoFaBusy] = useState(false);
 
   useEffect(() => {
     if (user?.settings) setForm({ ...DEFAULTS, ...user.settings });
@@ -96,6 +98,28 @@ export default function SettingsPage() {
             onChange={(v) => set("notificationSound", v)}
           />
         </div>
+      </section>
+
+      <section className="sfx-card px-[21px] py-2" aria-label="Security">
+        <h2 className="pt-3 text-[16px] font-semibold text-sfx-text">Security</h2>
+        <Toggle
+          label="Email code at sign-in"
+          description={twoFaBusy ? "Saving…" : `A six-digit code is sent to ${user?.email || "your email"} each time you sign in`}
+          checked={Boolean(user?.twoFactorEmail)}
+          onChange={async (v) => {
+            if (!user || twoFaBusy) return;
+            setTwoFaBusy(true);
+            setMessage(null);
+            try {
+              setUser(await setTwoFactorEmail(v));
+              setMessage({ tone: "success", text: v ? "Sign-in codes are on." : "Sign-in codes are off." });
+            } catch (e) {
+              setMessage({ tone: "danger", text: e instanceof Error ? e.message : "Couldn't change sign-in codes." });
+            } finally {
+              setTwoFaBusy(false);
+            }
+          }}
+        />
       </section>
 
       {message && <Alert tone={message.tone}>{message.text}</Alert>}
