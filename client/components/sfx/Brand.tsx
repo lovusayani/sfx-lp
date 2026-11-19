@@ -1,26 +1,38 @@
+"use client";
+
 import { useId } from "react";
 
 import { cn } from "./cn";
+import { useBranding } from "./useBranding";
 
-export const BRAND_NAME = "SfX LP";
-
-/** Wordmark: gold "SfX" with a small muted "LP" superscript (Figma 2:3). */
-export function Wordmark({ className, size = "md" }: { className?: string; size?: "md" | "lg" }) {
+/**
+ * Wordmark (Figma 2:3): short name in gold with a small muted "LP" superscript.
+ * `full` shows the full product name instead, for roomy layouts (desktop panels).
+ */
+export function Wordmark({ className, size = "md", full }: { className?: string; size?: "md" | "lg"; full?: boolean }) {
+  const { appName, shortName } = useBranding();
   return (
-    <span className={cn("inline-flex items-start gap-2 leading-none", className)} aria-label={BRAND_NAME}>
+    <span className={cn("inline-flex items-start gap-2 leading-none", className)} aria-label={appName}>
       <span className={cn("font-bold tracking-tight text-sfx-accent", size === "lg" ? "text-[26px]" : "text-[21px]")}>
-        SfX
+        {full ? appName : shortName}
       </span>
       <span className="text-[11px] font-semibold text-sfx-muted">LP</span>
     </span>
   );
 }
 
+/** Plain product name for headings and copy. */
+export function BrandName({ className }: { className?: string }) {
+  const { appName } = useBranding();
+  return <span className={className}>{appName}</span>;
+}
+
 /** Footer caption used on auth screens (Figma 2:32). */
 export function BrandFooter({ className }: { className?: string }) {
+  const { appName } = useBranding();
   return (
-    <p className={cn("text-[10px] font-medium tracking-wide text-sfx-muted", className)}>
-      SfX&nbsp;&nbsp;/&nbsp;&nbsp;PRIVATE &amp; SECURE
+    <p className={cn("text-[10px] font-medium uppercase tracking-wide text-sfx-muted", className)}>
+      {appName}&nbsp;&nbsp;/&nbsp;&nbsp;PRIVATE &amp; SECURE
     </p>
   );
 }
@@ -40,7 +52,7 @@ export function Medallion({ size = 180, className, animated = true }: { size?: n
       viewBox="0 0 180 180"
       className={className}
       role="img"
-      aria-label="SfX LP medallion"
+      aria-label="Medallion"
     >
       <defs>
         <radialGradient id={id("sfxHalo")} cx="50%" cy="50%" r="50%">

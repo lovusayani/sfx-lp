@@ -19,7 +19,7 @@ module.exports = {
       name: "sfx-lp-web",
       cwd: path.join(root, "client"),
       script: "node_modules/next/dist/bin/next",
-      args: `start -p ${process.env.SFX_WEB_PORT || 3000}`,
+      args: `start -H 127.0.0.1 -p ${process.env.SFX_WEB_PORT || 3100}`,
       instances: 1,
       exec_mode: "fork",
       env_production: { NODE_ENV: "production" },

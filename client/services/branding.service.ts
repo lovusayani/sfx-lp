@@ -3,6 +3,8 @@ import { apiFetch } from "./api";
 export type BrandingLogoVariant = "dark" | "light" | "mobile";
 
 export interface BrandingAssets {
+  appName?: string;
+  shortName?: string;
   darkLogoPath: string;
   lightLogoPath: string;
   mobileLogoPath: string;
@@ -29,5 +31,12 @@ export const uploadAdminBrandingLogo = async (
     formData,
   });
 
+  return data.branding;
+};
+export const updateBrandingName = async (appName: string, shortName: string): Promise<BrandingAssets> => {
+  const data = await apiFetch<{ branding: BrandingAssets }>("/admin/setup/branding-name", {
+    method: "PATCH",
+    body: { appName, shortName },
+  });
   return data.branding;
 };

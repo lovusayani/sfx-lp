@@ -3,10 +3,9 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
+import { OpenFileButton, SecureImage } from "@/components/files/SecureFile";
 import { useHydratedUser } from "@/hooks/useHydratedUser";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-const UPLOADS_BASE = API_BASE.replace(/\/api\/?$/, "");
 
 const documentItems = [
     { key: "companyProof", label: "Company Proof" },
@@ -49,7 +48,6 @@ export default function KycStatusPage() {
                 <div className="space-y-3">
                     {documentItems.map((item) => {
                         const filePath = user?.kycDocuments?.[item.key];
-                        const fileUrl = filePath ? `${UPLOADS_BASE}/${filePath}` : "";
                         const isPdf = filePath?.toLowerCase().endsWith(".pdf");
 
                         return (
@@ -62,21 +60,16 @@ export default function KycStatusPage() {
                                 {!filePath && <p className="text-sm text-zinc-500">No file submitted</p>}
 
                                 {filePath && isPdf && (
-                                    <a
-                                        href={fileUrl}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="text-sm text-indigo-300 underline"
-                                    >
+                                    <OpenFileButton fileRef={filePath} className="text-sm text-indigo-300 underline">
                                         Open PDF
-                                    </a>
+                                    </OpenFileButton>
                                 )}
 
                                 {filePath && !isPdf && (
-                                    <img
-                                        src={fileUrl}
+                                    <SecureImage
+                                        fileRef={filePath}
                                         alt={item.label}
-                                        className="max-h-52 w-full rounded-lg border border-zinc-800 object-contain"
+                                        className="max-h-52 min-h-24 w-full rounded-lg border border-zinc-800 object-contain"
                                     />
                                 )}
                             </div>

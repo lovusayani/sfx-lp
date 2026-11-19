@@ -56,10 +56,10 @@ export const submitKyc = asyncHandler(async (req: Request, res: Response) => {
   }
 
   req.user.kycDocuments = {
-    companyProof: storageService.getRelativePath(files.companyProof[0].filename),
-    panCard: storageService.getRelativePath(files.panCard[0].filename),
-    aadhaarCard: storageService.getRelativePath(files.aadhaarCard[0].filename),
-    selfie: storageService.getRelativePath(files.selfie[0].filename),
+    companyProof: storageService.getPrivateRef(files.companyProof[0].filename),
+    panCard: storageService.getPrivateRef(files.panCard[0].filename),
+    aadhaarCard: storageService.getPrivateRef(files.aadhaarCard[0].filename),
+    selfie: storageService.getPrivateRef(files.selfie[0].filename),
   };
   req.user.kycSubmitted = true;
   req.user.kycStatus = "pending";

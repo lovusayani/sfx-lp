@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import multer from "multer";
 import path from "path";
 
@@ -22,6 +23,30 @@ const storage = multer.diskStorage({
     const name = file.fieldname.replace(/[^a-zA-Z0-9_-]/g, "");
     const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
     cb(null, `${name}-${unique}${ext}`);
+  },
+});
+
+const privateStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    cb(null, path.isAbsolute(env.privateUploadDir) ? env.privateUploadDir : path.join(process.cwd(), env.privateUploadDir));
+  },
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase().replace(/[^a-z0-9.]/g, "");
+    const name = file.fieldname.replace(/[^a-zA-Z0-9_-]/g, "");
+    const unique = `${Date.now()}-${crypto.randomBytes(12).toString("hex")}`;
+    cb(null, `${name}-${unique}${ext}`);
+  },
+});
+
+/** KYC documents and deposit proofs: stored outside the public uploads folder. */
+export const privateUpload = multer({
+  storage: privateStorage,
+  limits: { fileSize: env.maxFileSizeBytes },
+  fileFilter: (_req, file, cb) => {
+    if (!allowedMimeTypes.includes(file.mimetype)) {
+      return cb(new Error("Only image and PDF files are allowed"));
+    }
+    cb(null, true);
   },
 });
 

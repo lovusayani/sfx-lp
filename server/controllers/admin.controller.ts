@@ -54,7 +54,14 @@ const resolveLogoPath = (publicPath?: string): string => {
   return fs.existsSync(absolutePath) ? publicPath : "";
 };
 
-const toBrandingPayload = (branding?: { darkLogoPath?: string; lightLogoPath?: string; mobileLogoPath?: string } | null) => ({
+export const DEFAULT_APP_NAME = "Swiss Liquidity";
+export const DEFAULT_SHORT_NAME = "SLq";
+
+const toBrandingPayload = (
+  branding?: { darkLogoPath?: string; lightLogoPath?: string; mobileLogoPath?: string; appName?: string; shortName?: string } | null
+) => ({
+  appName: branding?.appName || DEFAULT_APP_NAME,
+  shortName: branding?.shortName || DEFAULT_SHORT_NAME,
   darkLogoPath: resolveLogoPath(branding?.darkLogoPath),
   lightLogoPath: resolveLogoPath(branding?.lightLogoPath),
   mobileLogoPath: resolveLogoPath(branding?.mobileLogoPath),
@@ -972,6 +979,17 @@ export const getAdminStats = asyncHandler(async (_req: Request, res: Response) =
 
 export const getBrandingAssets = asyncHandler(async (_req: Request, res: Response) => {
   const branding = await Branding.findOne({ key: "default" }).lean();
+  return res.json({ branding: toBrandingPayload(branding) });
+});
+
+/** PATCH /api/admin/setup/branding-name — admin changes the product name shown to users. */
+export const updateBrandingName = asyncHandler(async (req: Request, res: Response) => {
+  const appName = String(req.body.appName || "").trim();
+  const shortName = String(req.body.shortName || "").trim();
+  const branding = (await Branding.findOne({ key: "default" })) || new Branding({ key: "default" });
+  branding.appName = appName || DEFAULT_APP_NAME;
+  branding.shortName = shortName || DEFAULT_SHORT_NAME;
+  await branding.save();
   return res.json({ branding: toBrandingPayload(branding) });
 });
 

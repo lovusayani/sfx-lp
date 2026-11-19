@@ -33,7 +33,7 @@ import {
 import { protect } from "../middlewares/auth.middleware";
 import { enforceKycApproved } from "../middlewares/kyc.middleware";
 import { enforceOnboarding } from "../middlewares/onboarding.middleware";
-import { kycUpload } from "../middlewares/upload.middleware";
+import { kycUpload, privateUpload } from "../middlewares/upload.middleware";
 import { validateRequest } from "../middlewares/validate.middleware";
 
 const router = Router();
@@ -44,7 +44,7 @@ router.post("/onboarding/complete", completeOnboarding);
 
 router.post(
   "/kyc",
-  kycUpload.fields([
+  privateUpload.fields([
     { name: "companyProof", maxCount: 1 },
     { name: "panCard", maxCount: 1 },
     { name: "aadhaarCard", maxCount: 1 },
@@ -53,7 +53,7 @@ router.post(
   submitKyc
 );
 
-router.post("/deposite", kycUpload.single("screenshot"), createDeposite);
+router.post("/deposite", privateUpload.single("screenshot"), createDeposite);
 router.get("/deposite-history", getDepositeHistory);
 router.get("/payment-setup", getPaymentSetup);
 router.get("/withdraw/wallet", getWithdrawWallet);

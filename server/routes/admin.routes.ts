@@ -28,6 +28,7 @@ import {
   updateLpUserLockInBalance,
   updateLpUserPassword,
   uploadBrandingLogo,
+  updateBrandingName,
   getPaymentSetup,
   updatePaymentSetup,
   uploadPaymentQr,
@@ -127,6 +128,16 @@ router.patch(
   ],
   validateRequest,
   adjustLpMainBalance
+);
+
+router.patch(
+  "/setup/branding-name",
+  [
+    body("appName").isString().trim().isLength({ min: 1, max: 60 }),
+    body("shortName").optional().isString().trim().isLength({ max: 12 }),
+  ],
+  validateRequest,
+  updateBrandingName
 );
 
 router.post(

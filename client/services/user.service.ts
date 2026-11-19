@@ -1,4 +1,4 @@
-import { apiFetch } from "./api";
+import { API_BASE, apiFetch } from "./api";
 import { updateSessionUser } from "./session.service";
 import {
   DepositeRecord,
@@ -297,16 +297,7 @@ export const getUserPnlUploads = async (): Promise<UserPnlUploadRecord[]> => {
 export const downloadPnlFile = async (id: string, originalName: string): Promise<void> => {
   const { getSession } = await import("./session.service");
   const session = getSession();
-
-  const resolveBase = (): string => {
-    if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
-    const host = window.location.hostname;
-    if (host === "10.0.2.2") return "http://10.0.2.2:5000/api";
-    if (host === "127.0.0.1") return "http://127.0.0.1:5000/api";
-    return `http://${host}:5000/api`;
-  };
-
-  const url = `${resolveBase()}/user/pnl-uploads/${id}/download`;
+  const url = `${API_BASE}/user/pnl-uploads/${id}/download`;
   const headers: Record<string, string> = {};
   if (session?.accessToken) headers["Authorization"] = `Bearer ${session.accessToken}`;
 

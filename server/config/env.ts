@@ -20,6 +20,8 @@ export const env = {
   jwtAccessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || "15m",
   jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
   uploadDir: process.env.UPLOAD_DIR || "uploads",
+  // KYC documents and payment proofs: never served statically, only via /api/files (owner or admin).
+  privateUploadDir: process.env.PRIVATE_UPLOAD_DIR || "private_uploads",
   maxFileSizeBytes: Number(process.env.MAX_FILE_SIZE_MB || 10) * 1024 * 1024,
   adminEmail: process.env.ADMIN_EMAIL || "",
   adminPassword: process.env.ADMIN_PASSWORD || "",

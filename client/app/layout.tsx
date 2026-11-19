@@ -11,10 +11,10 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: { default: "SfX LP", template: "%s · SfX LP" },
+  title: { default: "Swiss Liquidity", template: "%s · Swiss Liquidity" },
   description: "Your LP account, funds and trades in one secure place.",
-  applicationName: "SfX LP",
-  appleWebApp: { capable: true, title: "SfX LP", statusBarStyle: "black-translucent" },
+  applicationName: "Swiss Liquidity",
+  appleWebApp: { capable: true, title: "Swiss Liquidity", statusBarStyle: "black-translucent" },
   formatDetection: { telephone: false },
 };
 

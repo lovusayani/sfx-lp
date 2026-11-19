@@ -64,7 +64,7 @@ export const createDeposite = asyncHandler(async (req: Request, res: Response) =
     depositeType,
     network,
     walletAddress,
-    screenshot: storageService.getRelativePath(screenshotFile.filename),
+    screenshot: storageService.getPrivateRef(screenshotFile.filename),
     remarks: String(req.body.remarks || "").trim(),
     status: "pending",
   });

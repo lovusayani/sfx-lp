@@ -1,5 +1,6 @@
 "use client";
 
+import { OpenFileButton } from "@/components/files/SecureFile";
 import { useEffect, useState } from "react";
 
 import {
@@ -9,7 +10,6 @@ import {
     reviewAdminDeposite,
 } from "@/services/admin.service";
 
-const uploadsBase = "http://localhost:5000";
 
 export default function AdminWalletDepositesPage() {
     const [records, setRecords] = useState<AdminDepositeRecord[]>([]);
@@ -195,14 +195,12 @@ export default function AdminWalletDepositesPage() {
                         {selectedDeposite.screenshot && (
                             <div>
                                 <p className="mb-1 text-sm text-zinc-400">Payment Screenshot</p>
-                                <a
-                                    href={`${uploadsBase}${selectedDeposite.screenshot}`}
-                                    target="_blank"
-                                    rel="noreferrer"
+                                <OpenFileButton
+                                    fileRef={selectedDeposite.screenshot}
                                     className="text-sm text-cyan-300 underline"
                                 >
                                     Open uploaded screenshot
-                                </a>
+                                </OpenFileButton>
                             </div>
                         )}
 

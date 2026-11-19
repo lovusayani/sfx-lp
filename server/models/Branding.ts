@@ -5,6 +5,8 @@ export interface IBranding extends Document {
   darkLogoPath?: string;
   lightLogoPath?: string;
   mobileLogoPath?: string;
+  appName?: string;
+  shortName?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -17,6 +19,8 @@ const brandingSchema = new Schema<IBranding>(
     darkLogoPath: { type: String, trim: true },
     lightLogoPath: { type: String, trim: true },
     mobileLogoPath: { type: String, trim: true },
+    appName: { type: String, trim: true, maxlength: 60 },
+    shortName: { type: String, trim: true, maxlength: 12 },
   },
   { timestamps: true }
 );

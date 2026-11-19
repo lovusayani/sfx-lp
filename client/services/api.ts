@@ -27,7 +27,8 @@ const resolveApiBase = (): string => {
     return "http://localhost:5000/api";
   }
 
-  return `http://${host}:5000/api`;
+  // Deployed: API is served from the same domain under /api (Nginx proxy).
+  return `${window.location.origin}/api`;
 };
 
 export const API_BASE = resolveApiBase();

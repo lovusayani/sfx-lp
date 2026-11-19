@@ -65,7 +65,7 @@ export const logoutUser = async (): Promise<void> => {
   }
 };
 
-/* ── Features shown in the SfX design that need new API endpoints ──────────
+/* ── Features shown in the new design that need new API endpoints ──────────
    These call endpoints that are not live yet. Until the backend enables them,
    a 404/405 is turned into a clear, friendly message instead of a raw error. */
 
@@ -93,21 +93,21 @@ export const registerAccount = (payload: RegisterPayload) =>
   callOptionalEndpoint<{ message: string }>(
     "/auth/register",
     payload,
-    "Online sign-up is not open yet. Please contact SfX LP support and we will create your account."
+    "Online sign-up is not open yet. Please contact support and we will create your account."
   );
 
 export const requestPasswordReset = (email: string) =>
   callOptionalEndpoint<{ message: string }>(
     "/auth/forgot-password",
     { email },
-    "Email recovery is not enabled yet. Please contact SfX LP support to reset your password."
+    "Email recovery is not enabled yet. Please contact support to reset your password."
   );
 
 export const resetPasswordWithToken = (token: string, newPassword: string) =>
   callOptionalEndpoint<{ message: string }>(
     "/auth/reset-password",
     { token, newPassword },
-    "This reset link can't be used yet. Please contact SfX LP support."
+    "This reset link can't be used yet. Please contact support."
   );
 
 export const verifyOtpCode = (email: string, code: string, purpose: string) =>

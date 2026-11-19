@@ -27,7 +27,7 @@ export function AuthLayout({
           aria-hidden
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_50%_at_30%_40%,rgba(245,211,79,0.12),transparent_70%)]"
         />
-        <Wordmark size="lg" className="relative" />
+        <Wordmark size="lg" full className="relative" />
         <div className="relative flex flex-col items-start gap-8">
           {aside ?? (
             <>

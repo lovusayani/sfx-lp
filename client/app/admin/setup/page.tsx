@@ -3,6 +3,7 @@
 import { ChangeEvent, useEffect, useState } from "react";
 
 import { BrandLogo } from "@/components/branding/BrandLogo";
+import { BrandNameForm } from "@/components/branding/BrandNameForm";
 import { BrandingAssets, BrandingLogoVariant, getBrandingAssets, uploadAdminBrandingLogo } from "@/services/branding.service";
 import { getPublicAssetUrl } from "@/services/api";
 import {
@@ -188,6 +189,8 @@ export default function AdminSetupPage() {
                     Upload and manage the branding logos used in admin and frontend login screens.
                 </p>
             </div>
+
+            <BrandNameForm />
 
             <div className="grid gap-4 lg:grid-cols-3">
                 {LOGO_SPECS.map((item) => {

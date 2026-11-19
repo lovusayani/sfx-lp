@@ -44,3 +44,7 @@ uploads/
 
 # Deploy zip files
 *.zip
+
+# Private user documents (KYC, payment proofs)
+private_uploads/
+**/private_uploads/

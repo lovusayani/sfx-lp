@@ -1,5 +1,6 @@
 "use client";
 
+import { OpenFileButton, SecureImage } from "@/components/files/SecureFile";
 import { FormEvent, useEffect, useState } from "react";
 
 import {
@@ -47,7 +48,6 @@ export default function AdminUsersPage() {
     const [usersPage, setUsersPage] = useState(1);
     const [kycPage, setKycPage] = useState(1);
 
-    const uploadsBase = "http://localhost:5000";
 
     const loadUsers = async () => {
         setLoading(true);
@@ -491,7 +491,6 @@ export default function AdminUsersPage() {
                                 { key: "selfie", label: "Selfie" },
                             ].map((doc) => {
                                 const filePath = previewUser.kycDocuments?.[doc.key as keyof NonNullable<AdminLpUser["kycDocuments"]>];
-                                const fileUrl = filePath ? `${uploadsBase}/${filePath}` : "";
 
                                 return (
                                     <div key={doc.key} className="rounded-xl border border-zinc-800 p-3">
@@ -500,20 +499,18 @@ export default function AdminUsersPage() {
                                         {filePath && (
                                             <div className="space-y-3">
                                                 <div className="mx-auto h-[230px] w-[320px] max-w-full overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950">
-                                                    <img
-                                                        src={fileUrl}
+                                                    <SecureImage
+                                                        fileRef={filePath}
                                                         alt={doc.label}
                                                         className="h-full w-full object-contain"
                                                     />
                                                 </div>
-                                                <a
-                                                    href={fileUrl}
-                                                    target="_blank"
-                                                    rel="noreferrer"
+                                                <OpenFileButton
+                                                    fileRef={filePath}
                                                     className="btn-secondary inline-block px-3 py-1 text-xs"
                                                 >
                                                     View
-                                                </a>
+                                                </OpenFileButton>
                                             </div>
                                         )}
                                     </div>

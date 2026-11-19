@@ -7,7 +7,7 @@ export type FrontendTheme = "dark" | "light" | "system";
 
 export const FRONTEND_THEME_KEY = "sfx_theme";
 export const FRONTEND_THEME_EVENT = "sfx-theme-changed";
-/** SfX LP is designed dark-first; "system" is opt-in from Settings. */
+/** The app is designed dark-first; "system" is opt-in from Settings. */
 export const DEFAULT_THEME: FrontendTheme = "dark";
 
 const isTheme = (value: string | null): value is FrontendTheme =>
