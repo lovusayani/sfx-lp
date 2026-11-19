@@ -1,0 +1,91 @@
+import { cn } from "./cn";
+
+export const BRAND_NAME = "SfX LP";
+
+/** Wordmark: gold "SfX" with a small muted "LP" superscript (Figma 2:3). */
+export function Wordmark({ className, size = "md" }: { className?: string; size?: "md" | "lg" }) {
+  return (
+    <span className={cn("inline-flex items-start gap-2 leading-none", className)} aria-label={BRAND_NAME}>
+      <span className={cn("font-bold tracking-tight text-sfx-accent", size === "lg" ? "text-[26px]" : "text-[21px]")}>
+        SfX
+      </span>
+      <span className="text-[11px] font-semibold text-sfx-muted">LP</span>
+    </span>
+  );
+}
+
+/** Footer caption used on auth screens (Figma 2:32). */
+export function BrandFooter({ className }: { className?: string }) {
+  return (
+    <p className={cn("text-[10px] font-medium tracking-wide text-sfx-muted", className)}>
+      SfX&nbsp;&nbsp;/&nbsp;&nbsp;PRIVATE &amp; SECURE
+    </p>
+  );
+}
+
+/**
+ * Gold 3D medallion (Figma "Gold 3D medallion"), rebranded with an S monogram.
+ * Pure SVG so it stays crisp at any size and works offline in the PWA.
+ */
+export function Medallion({ size = 180, className, animated = true }: { size?: number; className?: string; animated?: boolean }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 180 180"
+      className={className}
+      role="img"
+      aria-label="SfX LP medallion"
+    >
+      <defs>
+        <radialGradient id="sfxHalo" cx="50%" cy="50%" r="50%">
+          <stop offset="55%" stopColor="#1a1a12" />
+          <stop offset="100%" stopColor="#0b0c0a" stopOpacity="0" />
+        </radialGradient>
+        <linearGradient id="sfxGold" x1="20%" y1="10%" x2="80%" y2="95%">
+          <stop offset="0%" stopColor="#fff1a8" />
+          <stop offset="38%" stopColor="#f5d34f" />
+          <stop offset="72%" stopColor="#c9a227" />
+          <stop offset="100%" stopColor="#8a6a12" />
+        </linearGradient>
+        <linearGradient id="sfxGoldInner" x1="80%" y1="10%" x2="20%" y2="95%">
+          <stop offset="0%" stopColor="#e9c13b" />
+          <stop offset="100%" stopColor="#a8811a" />
+        </linearGradient>
+        <radialGradient id="sfxFace" cx="45%" cy="40%" r="60%">
+          <stop offset="0%" stopColor="#24221a" />
+          <stop offset="100%" stopColor="#11120d" />
+        </radialGradient>
+      </defs>
+      <circle cx="90" cy="90" r="88" fill="url(#sfxHalo)" />
+      <g className={animated ? "sfx-orbit" : undefined}>
+        <circle cx="90" cy="90" r="76" fill="none" stroke="#f5d34f" strokeOpacity="0.45" strokeWidth="1" />
+        <circle cx="90" cy="90" r="70" fill="none" stroke="#f5d34f" strokeOpacity="0.35" strokeWidth="1" strokeDasharray="3 7" />
+        <circle cx="21" cy="62" r="4.5" fill="#f5d34f" />
+        <circle cx="158" cy="118" r="5.5" fill="#f5d34f" />
+      </g>
+      <circle cx="90" cy="90" r="58" fill="url(#sfxGold)" />
+      <circle cx="90" cy="90" r="50" fill="url(#sfxGoldInner)" />
+      <circle cx="90" cy="90" r="44" fill="url(#sfxFace)" />
+      <path
+        d="M90 56 L119.4 73 L119.4 107 L90 124 L60.6 107 L60.6 73 Z"
+        fill="none"
+        stroke="url(#sfxGold)"
+        strokeWidth="3.2"
+        strokeLinejoin="round"
+      />
+      <text
+        x="90"
+        y="104"
+        textAnchor="middle"
+        fontFamily="var(--font-inter), system-ui, sans-serif"
+        fontSize="42"
+        fontWeight="700"
+        fill="url(#sfxGold)"
+      >
+        S
+      </text>
+      <ellipse cx="70" cy="52" rx="22" ry="7" fill="#ffffff" opacity="0.18" transform="rotate(-28 70 52)" />
+    </svg>
+  );
+}

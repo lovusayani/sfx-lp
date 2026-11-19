@@ -1,89 +1,77 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
-type FrontendTheme = "dark" | "light" | "system";
+export type FrontendTheme = "dark" | "light" | "system";
 
-export const FRONTEND_THEME_KEY = "lmax_frontend_theme";
-export const FRONTEND_THEME_EVENT = "lmax-frontend-theme-changed";
+export const FRONTEND_THEME_KEY = "sfx_theme";
+export const FRONTEND_THEME_EVENT = "sfx-theme-changed";
+/** SfX LP is designed dark-first; "system" is opt-in from Settings. */
+export const DEFAULT_THEME: FrontendTheme = "dark";
 
-const isTheme = (value: string | null): value is FrontendTheme => {
-    return value === "dark" || value === "light" || value === "system";
+const isTheme = (value: string | null): value is FrontendTheme =>
+  value === "dark" || value === "light" || value === "system";
+
+export const readStoredTheme = (): FrontendTheme => {
+  try {
+    const stored = window.localStorage.getItem(FRONTEND_THEME_KEY);
+    return isTheme(stored) ? stored : DEFAULT_THEME;
+  } catch {
+    return DEFAULT_THEME;
+  }
 };
 
-const applyFrontendTheme = (theme: FrontendTheme, enabled: boolean) => {
-    const root = document.documentElement;
-    root.classList.remove("dark", "light", "rose");
+export const setFrontendTheme = (theme: FrontendTheme): void => {
+  try {
+    window.localStorage.setItem(FRONTEND_THEME_KEY, theme);
+  } catch {
+    // storage unavailable (private mode) — theme still applies for this session
+  }
+  window.dispatchEvent(new CustomEvent(FRONTEND_THEME_EVENT, { detail: theme }));
+};
 
-    if (!enabled) {
-        return;
-    }
+const resolve = (theme: FrontendTheme): "dark" | "light" => {
+  if (theme !== "system") return theme;
+  return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+};
 
-    if (theme === "system") {
-        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-        root.classList.add(prefersDark ? "dark" : "light");
-        return;
-    }
-
-    root.classList.add(theme);
+const apply = (theme: FrontendTheme, enabled: boolean) => {
+  const root = document.documentElement;
+  root.classList.remove("dark", "light", "rose");
+  if (!enabled) return;
+  const resolved = resolve(theme);
+  root.classList.add(resolved);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute("content", resolved === "light" ? "#f6f4ec" : "#0b0c0a");
 };
 
 export function FrontendThemeController() {
-    const pathname = usePathname();
-    const [theme, setTheme] = useState<FrontendTheme>("system");
+  const pathname = usePathname();
+  const [theme, setTheme] = useState<FrontendTheme>(DEFAULT_THEME);
+  const enabled = !pathname.startsWith("/admin");
 
-    const isFrontendThemeEnabled = useMemo(() => {
-        if (pathname.startsWith("/admin")) {
-            return false;
-        }
+  useEffect(() => {
+    setTheme(readStoredTheme());
+  }, []);
 
-        if (pathname === "/dashboard" || pathname === "/dashboard/") {
-            return false;
-        }
+  useEffect(() => {
+    apply(theme, enabled);
+  }, [enabled, theme]);
 
-        return true;
-    }, [pathname]);
+  useEffect(() => {
+    const sync = () => setTheme(readStoredTheme());
+    const media = window.matchMedia("(prefers-color-scheme: light)");
+    const onSystem = () => theme === "system" && apply("system", enabled);
+    window.addEventListener("storage", sync);
+    window.addEventListener(FRONTEND_THEME_EVENT, sync);
+    media.addEventListener("change", onSystem);
+    return () => {
+      window.removeEventListener("storage", sync);
+      window.removeEventListener(FRONTEND_THEME_EVENT, sync);
+      media.removeEventListener("change", onSystem);
+    };
+  }, [enabled, theme]);
 
-    useEffect(() => {
-        const stored = window.localStorage.getItem(FRONTEND_THEME_KEY);
-        setTheme(isTheme(stored) ? stored : "system");
-    }, []);
-
-    useEffect(() => {
-        applyFrontendTheme(theme, isFrontendThemeEnabled);
-    }, [isFrontendThemeEnabled, theme]);
-
-    useEffect(() => {
-        const onStorage = (event: StorageEvent) => {
-            if (event.key !== FRONTEND_THEME_KEY) {
-                return;
-            }
-            setTheme(isTheme(event.newValue) ? event.newValue : "system");
-        };
-
-        const onThemeUpdate = () => {
-            const stored = window.localStorage.getItem(FRONTEND_THEME_KEY);
-            setTheme(isTheme(stored) ? stored : "system");
-        };
-
-        const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-        const onSystemThemeChange = () => {
-            if (theme === "system") {
-                applyFrontendTheme("system", isFrontendThemeEnabled);
-            }
-        };
-
-        window.addEventListener("storage", onStorage);
-        window.addEventListener(FRONTEND_THEME_EVENT, onThemeUpdate);
-        mediaQuery.addEventListener("change", onSystemThemeChange);
-
-        return () => {
-            window.removeEventListener("storage", onStorage);
-            window.removeEventListener(FRONTEND_THEME_EVENT, onThemeUpdate);
-            mediaQuery.removeEventListener("change", onSystemThemeChange);
-        };
-    }, [isFrontendThemeEnabled, theme]);
-
-    return null;
+  return null;
 }
