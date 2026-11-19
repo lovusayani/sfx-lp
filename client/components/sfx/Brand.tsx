@@ -1,3 +1,5 @@
+import { useId } from "react";
+
 import { cn } from "./cn";
 
 export const BRAND_NAME = "SfX LP";
@@ -28,6 +30,9 @@ export function BrandFooter({ className }: { className?: string }) {
  * Pure SVG so it stays crisp at any size and works offline in the PWA.
  */
 export function Medallion({ size = 180, className, animated = true }: { size?: number; className?: string; animated?: boolean }) {
+  // Unique gradient ids per instance: a hidden duplicate (e.g. desktop panel) must not break the visible one.
+  const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
+  const id = (name: string) => `${name}-${uid}`;
   return (
     <svg
       width={size}
@@ -38,39 +43,39 @@ export function Medallion({ size = 180, className, animated = true }: { size?: n
       aria-label="SfX LP medallion"
     >
       <defs>
-        <radialGradient id="sfxHalo" cx="50%" cy="50%" r="50%">
+        <radialGradient id={id("sfxHalo")} cx="50%" cy="50%" r="50%">
           <stop offset="55%" stopColor="#1a1a12" />
           <stop offset="100%" stopColor="#0b0c0a" stopOpacity="0" />
         </radialGradient>
-        <linearGradient id="sfxGold" x1="20%" y1="10%" x2="80%" y2="95%">
+        <linearGradient id={id("sfxGold")} x1="20%" y1="10%" x2="80%" y2="95%">
           <stop offset="0%" stopColor="#fff1a8" />
           <stop offset="38%" stopColor="#f5d34f" />
           <stop offset="72%" stopColor="#c9a227" />
           <stop offset="100%" stopColor="#8a6a12" />
         </linearGradient>
-        <linearGradient id="sfxGoldInner" x1="80%" y1="10%" x2="20%" y2="95%">
+        <linearGradient id={id("sfxGoldInner")} x1="80%" y1="10%" x2="20%" y2="95%">
           <stop offset="0%" stopColor="#e9c13b" />
           <stop offset="100%" stopColor="#a8811a" />
         </linearGradient>
-        <radialGradient id="sfxFace" cx="45%" cy="40%" r="60%">
+        <radialGradient id={id("sfxFace")} cx="45%" cy="40%" r="60%">
           <stop offset="0%" stopColor="#24221a" />
           <stop offset="100%" stopColor="#11120d" />
         </radialGradient>
       </defs>
-      <circle cx="90" cy="90" r="88" fill="url(#sfxHalo)" />
+      <circle cx="90" cy="90" r="88" fill={`url(#${id("sfxHalo")})`} />
       <g className={animated ? "sfx-orbit" : undefined}>
         <circle cx="90" cy="90" r="76" fill="none" stroke="#f5d34f" strokeOpacity="0.45" strokeWidth="1" />
         <circle cx="90" cy="90" r="70" fill="none" stroke="#f5d34f" strokeOpacity="0.35" strokeWidth="1" strokeDasharray="3 7" />
         <circle cx="21" cy="62" r="4.5" fill="#f5d34f" />
         <circle cx="158" cy="118" r="5.5" fill="#f5d34f" />
       </g>
-      <circle cx="90" cy="90" r="58" fill="url(#sfxGold)" />
-      <circle cx="90" cy="90" r="50" fill="url(#sfxGoldInner)" />
-      <circle cx="90" cy="90" r="44" fill="url(#sfxFace)" />
+      <circle cx="90" cy="90" r="58" fill={`url(#${id("sfxGold")})`} />
+      <circle cx="90" cy="90" r="50" fill={`url(#${id("sfxGoldInner")})`} />
+      <circle cx="90" cy="90" r="44" fill={`url(#${id("sfxFace")})`} />
       <path
         d="M90 56 L119.4 73 L119.4 107 L90 124 L60.6 107 L60.6 73 Z"
         fill="none"
-        stroke="url(#sfxGold)"
+        stroke={`url(#${id("sfxGold")})`}
         strokeWidth="3.2"
         strokeLinejoin="round"
       />
@@ -81,7 +86,7 @@ export function Medallion({ size = 180, className, animated = true }: { size?: n
         fontFamily="var(--font-inter), system-ui, sans-serif"
         fontSize="42"
         fontWeight="700"
-        fill="url(#sfxGold)"
+        fill={`url(#${id("sfxGold")})`}
       >
         S
       </text>

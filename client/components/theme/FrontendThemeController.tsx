@@ -48,12 +48,11 @@ const apply = (theme: FrontendTheme, enabled: boolean) => {
 
 export function FrontendThemeController() {
   const pathname = usePathname();
-  const [theme, setTheme] = useState<FrontendTheme>(DEFAULT_THEME);
+  // Theme is never rendered, only applied to <html>, so reading storage at init is hydration-safe.
+  const [theme, setTheme] = useState<FrontendTheme>(() =>
+    typeof window === "undefined" ? DEFAULT_THEME : readStoredTheme()
+  );
   const enabled = !pathname.startsWith("/admin");
-
-  useEffect(() => {
-    setTheme(readStoredTheme());
-  }, []);
 
   useEffect(() => {
     apply(theme, enabled);

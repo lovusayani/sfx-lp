@@ -1,100 +1,42 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
+import { Medallion } from "@/components/sfx/Brand";
+import { AppShell } from "@/components/sfx/AppShell";
 import { useHydratedUser } from "@/hooks/useHydratedUser";
-import { getNextRoute } from "@/mvc/frontend/models/session.model";
-import { DashboardBottomBar } from "@/mvc/frontend/views/dashboard/bottom-bar.view";
-import { Sidebar } from "@/mvc/frontend/views/navigation/sidebar.view";
+import { getNextRoute } from "@/services/session.service";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-    const router = useRouter();
-    const pathname = usePathname();
-    const { loading, user } = useHydratedUser();
-    const isDevPreview = process.env.NODE_ENV === "development";
-    const [deviceWidth, setDeviceWidth] = useState<number | null>(null);
-    // Pages under their own design directory (e.g. brokerview) own their full shell,
-    // including their own bottom bar — skip the default shell for those routes.
-    const hasOwnShell = pathname.startsWith("/dashboard/brokerview");
+  const router = useRouter();
+  const pathname = usePathname();
+  const { loading, user } = useHydratedUser();
+  // Local UI preview without a backend (development only).
+  const isDevPreview = process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_DEV_PREVIEW === "true";
+  // The broker view still renders its own frame until it is redesigned.
+  const hasOwnShell = pathname.startsWith("/dashboard/brokerview");
 
-    useLayoutEffect(() => {
-        const updateWidth = () => {
-            setDeviceWidth(window.innerWidth || document.documentElement.clientWidth || 360);
-        };
-
-        updateWidth();
-        window.addEventListener("resize", updateWidth);
-        return () => window.removeEventListener("resize", updateWidth);
-    }, []);
-
-    useEffect(() => {
-        if (loading) {
-            return;
-        }
-
-        if (!user && !isDevPreview) {
-            router.replace("/login");
-            return;
-        }
-
-        if (!user && isDevPreview) {
-            return;
-        }
-
-        const expected = getNextRoute(user);
-        if (expected !== "/dashboard") {
-            router.replace(expected);
-        }
-    }, [isDevPreview, loading, router, user]);
-
-    if (loading) {
-        return (
-            /** Loading State */
-            <div className="flex min-h-screen items-center justify-center">
-                <p className="text-zinc-400">Loading dashboard...</p>
-            </div>
-        );
+  useEffect(() => {
+    if (loading) return;
+    if (!user) {
+      if (!isDevPreview) router.replace("/login");
+      return;
     }
+    const expected = getNextRoute(user);
+    if (expected !== "/dashboard") router.replace(expected);
+  }, [isDevPreview, loading, router, user]);
 
-    if (!user && isDevPreview) {
-        if (hasOwnShell) {
-            return <>{children}</>;
-        }
+  const allowed = isDevPreview || (user && getNextRoute(user) === "/dashboard");
 
-        return (
-            <div className="mx-auto flex min-h-screen w-full max-w-none gap-0 bg-[radial-gradient(circle_at_top,_#11286f_0%,_#02083f_32%,_#02062b_72%,_#01041f_100%)] px-0 pb-24 pt-0 lg:max-w-7xl lg:gap-4 lg:px-4 lg:pb-8 lg:pt-6">
-                {/* ** Sidebar ** */}
-                <Sidebar />
-                {/* ** Page Content ** */}
-                <main className="flex-1 bg-transparent">{children}</main>
-                {/* ** Bottom Bar ** */}
-                <DashboardBottomBar deviceWidth={deviceWidth} />
-            </div>
-        );
-    }
-
-    if (!user || getNextRoute(user) !== "/dashboard") {
-        return (
-            /** Redirect Loading State */
-            <div className="flex min-h-screen items-center justify-center">
-                <p className="text-zinc-400">Loading dashboard...</p>
-            </div>
-        );
-    }
-
-    if (hasOwnShell) {
-        return <>{children}</>;
-    }
-
+  if (loading || !allowed) {
     return (
-        <div className="mx-auto flex min-h-screen w-full max-w-none gap-0 bg-[radial-gradient(circle_at_top,_#11286f_0%,_#02083f_32%,_#02062b_72%,_#01041f_100%)] px-0 pb-24 pt-0 lg:max-w-7xl lg:gap-4 lg:px-4 lg:pb-8 lg:pt-6">
-            {/* ** Sidebar ** */}
-            <Sidebar />
-            {/* ** Page Content ** */}
-            <main className="flex-1 bg-transparent">{children}</main>
-            {/* ** Bottom Bar ** */}
-            <DashboardBottomBar deviceWidth={deviceWidth} />
-        </div>
+      <div className="sfx sfx-page flex items-center justify-center">
+        <Medallion size={96} />
+      </div>
     );
+  }
+
+  if (hasOwnShell) return <>{children}</>;
+  return <AppShell>{children}</AppShell>;
 }

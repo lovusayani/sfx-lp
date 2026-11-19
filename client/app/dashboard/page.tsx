@@ -1,387 +1,194 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeftRight, BanknoteArrowUp, ChevronDown, HandCoins, PiggyBank } from "lucide-react";
-import { ReactNode } from "react";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Bell, ShieldAlert } from "lucide-react";
 
-import { MarketCarousel } from "@/components/dashboard/MarketCarousel";
-import { TradingViewChartCard } from "@/components/dashboard/TradingViewChartCard";
-import { DashboardTopbar } from "@/mvc/frontend/views/dashboard/topbar.view";
+import { ActivityItem, loadActivity } from "@/components/sfx/activity";
+import { ActivityList, EmptyState, Skeleton } from "@/components/sfx/ActivityList";
+import { cn } from "@/components/sfx/cn";
+import { firstName, formatMoney, greeting } from "@/components/sfx/format";
+import { Chip, SectionTitle, TopBar } from "@/components/sfx/ui";
+import { useHydratedUser } from "@/hooks/useHydratedUser";
+import { getWalletOverview, WalletOverview } from "@/services/trades.service";
 import { getWalletBalances } from "@/services/user.service";
+import { KycStatus, WalletBalances } from "@/types";
 
-const tickerItems = [
-    { symbol: "BTC", price: "$62,410", change: "+2.8%" },
-    { symbol: "ETH", price: "$3,285", change: "+1.5%" },
-    { symbol: "SOL", price: "$142.30", change: "+4.2%" },
-    { symbol: "TON", price: "$6.91", change: "-0.8%" },
-    { symbol: "XRP", price: "$0.61", change: "+0.9%" },
-    { symbol: "DOGE", price: "$0.14", change: "+3.1%" },
-];
+const KYC_CHIP: Record<KycStatus, { label: string; tone: "gold" | "success" | "danger" | "neutral" }> = {
+  approved: { label: "VERIFIED", tone: "gold" },
+  pending: { label: "IN REVIEW", tone: "neutral" },
+  rejected: { label: "ACTION NEEDED", tone: "danger" },
+  not_submitted: { label: "UNVERIFIED", tone: "neutral" },
+};
 
-const topTapeItems = [
-    { symbol: "US30", price: "37,769.49", change: "+0.27%" },
-    { symbol: "NAS100", price: "16,943.93", change: "+0.46%" },
-    { symbol: "OIL", price: "72.12", change: "-1.5%" },
-    { symbol: "EUR/USD", price: "1.0853", change: "+0.35%" },
-    { symbol: "GBP/USD", price: "1.2663", change: "-0.1%" },
-    { symbol: "BTC/USD", price: "43,202.88", change: "+2.81%" },
-    { symbol: "ETH/USD", price: "2,286.00", change: "+2.05%" },
-    { symbol: "XAU/USD", price: "2,035.10", change: "+0.42%" },
-];
+/** Figma: DARK / 15 Dashboard Preview, LIGHT / 18 Dashboard */
+export default function DashboardHome() {
+  const { user } = useHydratedUser();
+  const [balances, setBalances] = useState<WalletBalances | null>(null);
+  const [overview, setOverview] = useState<WalletOverview | null>(null);
+  const [activity, setActivity] = useState<ActivityItem[] | null>(null);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const [b, o, a] = await Promise.allSettled([getWalletBalances(), getWalletOverview(), loadActivity(5)]);
+      if (!alive) return;
+      setBalances(b.status === "fulfilled" ? b.value : { mainWalletBalance: 0, tradeWalletBalance: 0 });
+      setOverview(o.status === "fulfilled" ? o.value : null);
+      setActivity(a.status === "fulfilled" ? a.value : []);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
-function HeroActionButton({
-    label,
-    icon,
-    positionClass,
-    gradientId,
-    href,
-}: {
-    label: string;
-    icon: ReactNode;
-    positionClass: string;
-    gradientId: string;
-    href?: string;
-}) {
-    const clipId = `${gradientId}-clip`;
-    const content = (
-        <>
-            <div className="relative inline-grid h-16 w-16 place-items-center">
-                <svg
-                    width="64"
-                    height="64"
-                    viewBox="0 0 64 64"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="absolute inset-0"
-                    aria-hidden="true"
-                >
-                    <g clipPath={`url(#${clipId})`}>
-                        <g transform="matrix(0 0.032 -0.032 0 32 32)">
-                            <rect x="0" y="0" width="1031.25" height="1031.25" fill={`url(#${gradientId})`} shapeRendering="crispEdges" />
-                            <rect x="0" y="0" width="1031.25" height="1031.25" transform="scale(1 -1)" fill={`url(#${gradientId})`} shapeRendering="crispEdges" />
-                            <rect x="0" y="0" width="1031.25" height="1031.25" transform="scale(-1 1)" fill={`url(#${gradientId})`} shapeRendering="crispEdges" />
-                            <rect x="0" y="0" width="1031.25" height="1031.25" transform="scale(-1)" fill={`url(#${gradientId})`} shapeRendering="crispEdges" />
-                        </g>
-                    </g>
-                    <circle cx="32" cy="32" r="31.5" stroke="#030053" />
-                    <defs>
-                        <clipPath id={clipId}>
-                            <circle cx="32" cy="32" r="31.5" />
-                        </clipPath>
-                        <linearGradient id={gradientId} x1="0" y1="0" x2="500" y2="500" gradientUnits="userSpaceOnUse">
-                            <stop stopColor="#2314FF" />
-                            <stop offset="1" stopColor="#060021" />
-                        </linearGradient>
-                    </defs>
-                </svg>
-                <span className="relative z-10 text-white">{icon}</span>
+  const total = (balances?.mainWalletBalance || 0) + (balances?.tradeWalletBalance || 0);
+  const todayPnl = overview ? overview.profit - overview.loss - overview.charges : null;
+  const kyc = KYC_CHIP[user?.kycStatus || "not_submitted"];
+  const kycApproved = user?.kycStatus === "approved";
+
+  return (
+    <div className="sfx-enter flex flex-col gap-[19px]">
+      <TopBar
+        back={false}
+        right={
+          <div className="flex items-center gap-3">
+            <span className="text-[12px] font-medium tracking-[0.08em] text-sfx-muted">OVERVIEW</span>
+            <Link
+              href="/dashboard/notices"
+              aria-label="Notices"
+              className="flex h-9 w-9 items-center justify-center rounded-full text-sfx-muted hover:bg-sfx-gold-soft/40 hover:text-sfx-text lg:hidden"
+            >
+              <Bell size={18} />
+            </Link>
+          </div>
+        }
+      />
+
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 suppressHydrationWarning className="text-[24px] font-bold text-sfx-text md:text-[28px]">
+          {greeting()}, {firstName(user?.fullName)}
+        </h1>
+        <Chip tone={kyc.tone}>{kyc.label}</Chip>
+      </div>
+
+      {user && !kycApproved && (
+        <Link
+          href={user.kycStatus === "not_submitted" ? "/kyc" : "/kyc/status"}
+          className="flex items-center gap-3 rounded-[18px] border border-sfx-border bg-sfx-gold-soft/40 px-4 py-3 text-[13px] text-sfx-text"
+        >
+          <ShieldAlert size={18} className="shrink-0 text-sfx-accent" />
+          <span className="flex-1">
+            {user.kycStatus === "pending"
+              ? "Your verification is in review. Deposits and withdrawals unlock once approved."
+              : "Verify your identity to unlock deposits and withdrawals."}
+          </span>
+          <span className="font-semibold text-sfx-accent">{user.kycStatus === "pending" ? "Status" : "Verify"}</span>
+        </Link>
+      )}
+
+      <div className="grid gap-[19px] lg:grid-cols-[1.15fr_1fr] lg:items-start">
+        <div className="flex flex-col gap-[19px]">
+          {/* Portfolio card (Figma 2:396) */}
+          <section className="sfx-card flex flex-col gap-3 p-[21px]" aria-label="Total portfolio value">
+            <p className="text-[12px] font-medium tracking-[0.08em] text-sfx-muted">TOTAL PORTFOLIO VALUE</p>
+            {balances ? (
+              <p className="text-[38px] font-bold leading-tight tracking-tight text-sfx-accent tabular-nums md:text-[44px]">
+                {formatMoney(total)}
+              </p>
+            ) : (
+              <Skeleton className="h-11 w-56" />
+            )}
+            <p className="text-[13px] text-sfx-text">
+              {todayPnl === null ? (
+                <span className="text-sfx-muted">Trading results appear once your trade account is linked.</span>
+              ) : (
+                <>
+                  <span className={todayPnl >= 0 ? "text-sfx-accent" : "text-sfx-danger"}>
+                    {todayPnl >= 0 ? "↑" : "↓"} {formatMoney(todayPnl, { sign: true })}
+                  </span>{" "}
+                  <span className="text-sfx-muted">today</span>
+                </>
+              )}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-1.5 sm:gap-2">
+              <QuickAction href="/dashboard/deposite" icon={ArrowUpRight} label="Deposit" disabled={!kycApproved} />
+              <QuickAction href="/dashboard/withdraw" icon={ArrowDownLeft} label="Withdraw" disabled={!kycApproved} />
+              <QuickAction href="/dashboard/wallet" icon={ArrowLeftRight} label="Transfer" />
             </div>
-            <span className="mt-1.5 block text-[0.58rem] font-semibold text-white sm:text-[0.63rem]">{label}</span>
-        </>
-    );
+          </section>
 
-    return (
-        <div className={`absolute z-10 -translate-x-1/2 -translate-y-full text-center ${positionClass}`}>
-            {href ? <Link href={href}>{content}</Link> : content}
+          {/* Stat tiles (Figma 2:408) */}
+          <div className="grid grid-cols-2 gap-4">
+            <StatTile label="MAIN WALLET" value={balances ? formatMoney(balances.mainWalletBalance, { decimals: 0 }) : null} />
+            <StatTile label="TRADE WALLET" value={balances ? formatMoney(balances.tradeWalletBalance, { decimals: 0 }) : null} />
+            {overview && (
+              <>
+                <StatTile label="TRADING P&L" value={formatMoney(overview.profit - overview.loss, { sign: true, decimals: 0 })} accent />
+                <StatTile label="CHARGES TODAY" value={formatMoney(overview.charges, { decimals: 0 })} />
+              </>
+            )}
+          </div>
         </div>
-    );
+
+        {/* Recent activity (Figma 2:415–2:416) */}
+        <section className="flex flex-col gap-4" aria-label="Recent activity">
+          <SectionTitle
+            action={
+              <Link href="/dashboard/history" className="text-[12px] font-semibold text-sfx-accent hover:underline">
+                View all
+              </Link>
+            }
+          >
+            Recent activity
+          </SectionTitle>
+          {activity === null ? (
+            <Skeleton className="h-[160px]" />
+          ) : activity.length === 0 ? (
+            <EmptyState title="No activity yet" body="Deposits, withdrawals and transfers will show up here." />
+          ) : (
+            <ActivityList items={activity} />
+          )}
+        </section>
+      </div>
+    </div>
+  );
 }
 
-export default function DashboardHomePage() {
-    const [deviceWidth, setDeviceWidth] = useState<number | null>(null);
-    const [topbarHeight, setTopbarHeight] = useState(88);
-    const [mainWalletBalance, setMainWalletBalance] = useState<number>(0);
-    const [tradeWalletBalance, setTradeWalletBalance] = useState<number>(0);
-    const [selectedWallet, setSelectedWallet] = useState<"main" | "trade">("main");
-    const topbarRef = useRef<HTMLDivElement | null>(null);
-
-    const formattedMainWalletBalance = useMemo(
-        () => Number(mainWalletBalance || 0).toFixed(2),
-        [mainWalletBalance]
-    );
-
-    const formattedTradeWalletBalance = useMemo(
-        () => Number(tradeWalletBalance || 0).toFixed(2),
-        [tradeWalletBalance]
-    );
-
-    const displayedWalletBalance = selectedWallet === "main"
-        ? formattedMainWalletBalance
-        : formattedTradeWalletBalance;
-
-    useLayoutEffect(() => {
-        const getCurrentDeviceWidth = () => {
-            return window.innerWidth || document.documentElement.clientWidth || 360;
-        };
-
-        const updateWidth = () => {
-            setDeviceWidth(getCurrentDeviceWidth());
-        };
-
-        updateWidth();
-        window.addEventListener("resize", updateWidth);
-
-        return () => {
-            window.removeEventListener("resize", updateWidth);
-        };
-    }, []);
-
-    useLayoutEffect(() => {
-        const measureTopbar = () => {
-            if (topbarRef.current) {
-                setTopbarHeight(topbarRef.current.offsetHeight);
-            }
-        };
-
-        measureTopbar();
-
-        let resizeObserver: ResizeObserver | null = null;
-        if (topbarRef.current && typeof ResizeObserver !== "undefined") {
-            resizeObserver = new ResizeObserver(measureTopbar);
-            resizeObserver.observe(topbarRef.current);
-        }
-
-        window.addEventListener("resize", measureTopbar);
-
-        return () => {
-            window.removeEventListener("resize", measureTopbar);
-            if (resizeObserver) {
-                resizeObserver.disconnect();
-            }
-        };
-    }, []);
-
-    useEffect(() => {
-        const loadMainBalance = async () => {
-            try {
-                const balances = await getWalletBalances();
-                setMainWalletBalance(balances.mainWalletBalance ?? 0);
-                setTradeWalletBalance(balances.tradeWalletBalance ?? 0);
-            } catch {
-                setMainWalletBalance(0);
-                setTradeWalletBalance(0);
-            }
-        };
-
-        loadMainBalance();
-    }, []);
-
-    const heroMaxWidth = deviceWidth ? `${deviceWidth}px` : "100%";
-    const pageLayoutStyle = deviceWidth
-        ? { width: `${deviceWidth}px`, maxWidth: `${deviceWidth}px`, margin: "0 auto" }
-        : undefined;
-    const currentWidth = deviceWidth ?? 360;
-    const svgWidth = Math.round(Math.max(320, Math.min(currentWidth, 520)));
-    const svgHeight = svgWidth;
-    const svgTop = Math.round((-181 / 438) * svgWidth);
-
-    if (deviceWidth === null) {
-        return <div className="min-h-screen w-full bg-[radial-gradient(circle_at_top,_#11286f_0%,_#02083f_32%,_#02062b_72%,_#01041f_100%)]" />;
-    }
-
+function QuickAction({
+  href,
+  icon: Icon,
+  label,
+  disabled,
+}: {
+  href: string;
+  icon: typeof ArrowUpRight;
+  label: string;
+  disabled?: boolean;
+}) {
+  const cls = "inline-flex items-center gap-1 rounded-[30px] bg-sfx-gold-soft px-3 py-2 text-[11px] font-semibold text-sfx-accent sm:gap-1.5 sm:px-3.5 sm:text-[12px]";
+  if (disabled) {
     return (
-        <div
-            className="min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top,_#11286f_0%,_#02083f_32%,_#02062b_72%,_#01041f_100%)] pb-[calc(7.5rem+env(safe-area-inset-bottom))]"
-            style={pageLayoutStyle}
-        >
-            {/* ** Hero Section ** */}
-            <div className="relative">
-                <section className="w-full px-0 pb-3 pt-0">
-                    <div
-                        className="relative w-full overflow-hidden"
-                        style={{ height: "260px", maxWidth: heroMaxWidth }}
-                    >
-                        <svg
-                            width={svgWidth}
-                            height={svgHeight}
-                            viewBox="0 0 438 402"
-                            fill="none"
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="pointer-events-none absolute left-1/2 -translate-x-1/2"
-                            style={{ top: `${svgTop}px` }}
-                        >
-                            <ellipse cx="220" cy="201" rx="220" ry="201" fill="url(#paint0_radial_1_77)" />
-                            <defs>
-                                <radialGradient
-                                    id="paint0_radial_1_77"
-                                    cx="0"
-                                    cy="0"
-                                    r="1"
-                                    gradientUnits="userSpaceOnUse"
-                                    gradientTransform="translate(220 201) rotate(90) scale(201 220)"
-                                >
-                                    <stop stopColor="#0D1F56" />
-                                    <stop offset="0.894231" stopColor="#0A132F" />
-                                    <stop offset="1" stopColor="#00165B" />
-                                </radialGradient>
-                            </defs>
-                        </svg>
-                        <div
-                            className="relative z-10 grid place-items-center px-3 text-center text-white"
-                            style={{ marginTop: `${topbarHeight + 8}px` }}
-                        >
-                            <div className="relative inline-flex items-center">
-                                <select
-                                    value={selectedWallet}
-                                    onChange={(event) => setSelectedWallet(event.target.value as "main" | "trade")}
-                                    className="appearance-none rounded-full border border-zinc-200/80 bg-black/25 px-4 py-1 pr-8 text-[clamp(0.95rem,4.4vw,1.2rem)] font-bold leading-tight text-white outline-none"
-                                >
-                                    <option value="main">Main Wallet</option>
-                                    <option value="trade">Trade Wallet</option>
-                                </select>
-                                <span className="pointer-events-none absolute right-2 inline-grid h-5 w-5 place-items-center">
-                                    <ChevronDown className="h-4 w-4" />
-                                </span>
-                            </div>
-                            <p className="mt-1 text-[clamp(1.7rem,6.4vw,2.4rem)] font-semibold tracking-tight">${displayedWalletBalance}</p>
-                        </div>
-
-                        <HeroActionButton
-                            label="F2F"
-                            icon={<HandCoins className="h-9 w-9" strokeWidth={2.2} />}
-                            positionClass="left-[10%] top-[260px] sm:left-[11%]"
-                            gradientId="paint0_diamond_send"
-                            href="/dashboard/deposite"
-                        />
-
-                        <HeroActionButton
-                            label="Withdraw"
-                            icon={<BanknoteArrowUp className="h-9 w-9" strokeWidth={2.2} />}
-                            positionClass="left-[90%] top-[260px] sm:left-[89%]"
-                            gradientId="paint0_diamond_sell"
-                            href="/dashboard/withdraw"
-                        />
-
-                    </div>
-                </section>
-
-                {/* ** Topbar ** */}
-                <div className="pointer-events-none fixed inset-x-0 top-0 z-[120]">
-                    <div
-                        ref={topbarRef}
-                        className="pointer-events-auto mx-auto"
-                        style={deviceWidth ? { width: `${deviceWidth}px`, maxWidth: `${deviceWidth}px` } : undefined}
-                    >
-                        <DashboardTopbar />
-                    </div>
-                </div>
-            </div>
-
-            {/* ** Quick Actions ** */}
-            <section className="-mt-6 w-full px-3 sm:px-4">
-                <div className="w-full pt-0">
-                    <div className="flex items-start justify-center gap-6">
-                        <div className="text-center">
-                            <Link
-                                href="/dashboard/deposite"
-                                className="inline-grid h-[52px] w-[52px] place-items-center rounded-full border border-[#030053] bg-[radial-gradient(50%_50%_at_50%_50%,_#2314FF_0%,_#060021_100%)] text-white"
-                            >
-                                <PiggyBank className="h-6 w-6" />
-                            </Link>
-                            <span className="mt-1 block text-xs font-semibold text-white">Deposit</span>
-                        </div>
-
-                        <div className="text-center">
-                            <Link
-                                href="/dashboard/wallet"
-                                className="inline-grid h-[52px] w-[52px] place-items-center rounded-full border border-[#030053] bg-[radial-gradient(50%_50%_at_50%_50%,_#2314FF_0%,_#060021_100%)] text-white"
-                            >
-                                <ArrowLeftRight className="h-6 w-6" />
-                            </Link>
-                            <span className="mt-1 block text-xs font-semibold text-white">Swap</span>
-                        </div>
-
-                        <div className="text-center">
-                            <Link
-                                href="/dashboard/withdraw"
-                                className="inline-grid h-[52px] w-[52px] place-items-center rounded-full border border-[#030053] bg-[radial-gradient(50%_50%_at_50%_50%,_#2314FF_0%,_#060021_100%)] text-white"
-                            >
-                                <BanknoteArrowUp className="h-6 w-6" />
-                            </Link>
-                            <span className="mt-1 block text-xs font-semibold text-white">Withdraw</span>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            {/* ** Top Market Tape ** */}
-            <section className="mt-4 w-full px-0">
-                <div className="overflow-hidden border-y border-white/10 bg-black/85 py-1.5">
-                    <div
-                        className="inline-flex min-w-max items-center gap-6 px-3 text-xs sm:gap-8 sm:px-4 sm:text-sm"
-                        style={{ animation: "dashboardTapeMarquee 65s linear infinite" }}
-                    >
-                        {topTapeItems.concat(topTapeItems).map((item, index) => {
-                            const positive = item.change.startsWith("+");
-
-                            return (
-                                <div key={`${item.symbol}-${index}`} className="inline-flex items-center gap-2 whitespace-nowrap">
-                                    <span className="font-semibold text-zinc-100">{item.symbol}</span>
-                                    <span className="text-zinc-300">{item.price}</span>
-                                    <span className={positive ? "text-emerald-400" : "text-rose-400"}>
-                                        {positive ? "↗" : "↘"} {item.change}
-                                    </span>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-            </section>
-
-            {/* ** Tickers / Scrollers ** */}
-            <section className="mt-5 w-full px-3 sm:px-4">
-                <div className="overflow-hidden pb-1">
-                    <div
-                        className="inline-flex min-w-max gap-2"
-                        style={{ animation: "dashboardCardMarquee 75s linear infinite" }}
-                    >
-                        {tickerItems.concat(tickerItems).map((ticker, index) => {
-                            const isPositive = ticker.change.startsWith("+");
-                            return (
-                                <article
-                                    key={`${ticker.symbol}-${index}`}
-                                    className="min-w-[136px] rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-white"
-                                >
-                                    <p className="text-xs font-semibold tracking-wide text-zinc-100">{ticker.symbol}</p>
-                                    <p className="mt-1 text-sm font-semibold">{ticker.price}</p>
-                                    <p className={`mt-0.5 text-xs ${isPositive ? "text-emerald-300" : "text-rose-300"}`}>{ticker.change}</p>
-                                </article>
-                            );
-                        })}
-                    </div>
-                </div>
-            </section>
-
-            {/* ** Live Chart ** */}
-            <section className="mt-4 w-full px-3 sm:px-4">
-                <TradingViewChartCard />
-            </section>
-
-            {/* ** Market Section ** */}
-            <section className="mt-4 w-full px-3 sm:px-4">
-                <MarketCarousel />
-            </section>
-
-            <style jsx>{`
-                @keyframes dashboardTapeMarquee {
-                    0% {
-                        transform: translateX(0);
-                    }
-                    100% {
-                        transform: translateX(-50%);
-                    }
-                }
-
-                @keyframes dashboardCardMarquee {
-                    0% {
-                        transform: translateX(0);
-                    }
-                    100% {
-                        transform: translateX(-50%);
-                    }
-                }
-            `}</style>
-        </div >
+      <span className={cn(cls, "cursor-not-allowed opacity-45")} title="Available after verification" aria-disabled>
+        <Icon size={13} /> {label}
+      </span>
     );
+  }
+  return (
+    <Link href={href} className={cn(cls, "transition hover:brightness-110")}>
+      <Icon size={13} /> {label}
+    </Link>
+  );
+}
+
+function StatTile({ label, value, accent }: { label: string; value: string | null; accent?: boolean }) {
+  return (
+    <div className="sfx-tile flex flex-col gap-2 p-5">
+      <p className="text-[11px] font-medium tracking-[0.06em] text-sfx-muted">{label}</p>
+      {value === null ? (
+        <Skeleton className="h-6 w-20" />
+      ) : (
+        <p className={cn("text-[19px] font-semibold tabular-nums", accent ? "text-sfx-accent" : "text-sfx-text")}>{value}</p>
+      )}
+    </div>
+  );
 }

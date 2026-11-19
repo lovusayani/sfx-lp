@@ -4,7 +4,7 @@ async function main() {
   const mongo = await MongoMemoryServer.create({
     instance: {
       port: 27017,
-      dbName: "lp_management",
+      dbName: "sfxlp_dev",
       ip: "127.0.0.1",
     },
   });

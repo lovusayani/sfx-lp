@@ -1,77 +1,143 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, ShieldCheck } from "lucide-react";
 
+import { AuthLayout } from "@/components/sfx/AuthLayout";
+import { GoldHero } from "@/components/sfx/Hero";
+import { Alert, Button, Chip, Display, TopBar } from "@/components/sfx/ui";
+import { formatMoney } from "@/components/sfx/format";
 import { useHydratedUser } from "@/hooks/useHydratedUser";
 import { getNextRoute } from "@/services/session.service";
 import { completeOnboarding } from "@/services/user.service";
 
-const slides = [
-    { title: "Welcome", description: "Secure LP experience designed for clarity and speed." },
-    { title: "Profile", description: "Keep your details updated for compliance and reporting." },
-    { title: "KYC", description: "Submit required documents to unlock transactions." },
-    { title: "Dashboard", description: "Use profile, deposit, withdraw, and settings modules." },
-];
+/**
+ * Figma: DARK / 02–04 Onboarding (Account, Transfers, Security).
+ * Signed out: an introduction that ends at Sign in.
+ * Signed in (first login): completes onboarding on the server, then continues to KYC.
+ */
+const SLIDES = [
+  {
+    eyebrow: "YOUR ACCOUNT",
+    title: "A better view of your funds.",
+    body: "Balances, account activity and reports in one refined dashboard.",
+    cta: "Continue",
+  },
+  {
+    eyebrow: "MOVE WITH CLARITY",
+    title: "Funds, without the friction.",
+    body: "Review transfers, deposits, withdrawals and transaction history.",
+    cta: "Continue",
+  },
+  {
+    eyebrow: "BUILT AROUND TRUST",
+    title: "Confidence at every step.",
+    body: "Stay informed with authentication, KYC and account alerts.",
+    cta: "Start securely",
+  },
+] as const;
+
+function OnboardingInner() {
+  const router = useRouter();
+  const params = useSearchParams();
+  const { loading, user } = useHydratedUser();
+  const initial = Math.min(Math.max(Number(params.get("step")) || 0, 0), SLIDES.length - 1);
+  const [index, setIndex] = useState(initial);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (loading || !user) return;
+    if (user.mustChangePassword || user.onboardingCompleted) router.replace(getNextRoute(user));
+  }, [loading, router, user]);
+
+  const finish = async () => {
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+    setSubmitting(true);
+    setError("");
+    try {
+      await completeOnboarding();
+      router.replace("/kyc");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not continue. Please try again.");
+      setSubmitting(false);
+    }
+  };
+
+  const next = () => (index < SLIDES.length - 1 ? setIndex(index + 1) : finish());
+  const back = () => (index > 0 ? setIndex(index - 1) : router.push(user ? "/login" : "/welcome"));
+  const slide = SLIDES[index];
+
+  return (
+    <AuthLayout key={index}>
+      <TopBar onBack={back} caption={`0${index + 1} / 0${SLIDES.length}`} />
+      <Chip className="self-start">{slide.eyebrow}</Chip>
+      <div className="h-1" />
+
+      {index === 0 && <GoldHero caption="Everything in one place" step={0} onStep={setIndex} />}
+      {index === 1 && <BalancePreview />}
+      {index === 2 && <SecurityPreview />}
+
+      <Display title={slide.title} subtitle={slide.body} />
+      {error && <Alert>{error}</Alert>}
+      <Button onClick={next} loading={submitting} className="mt-2">
+        {slide.cta}
+      </Button>
+      {index === 0 && (
+        <button
+          type="button"
+          onClick={finish}
+          disabled={submitting}
+          className="self-start text-[13px] font-medium text-sfx-muted hover:text-sfx-text"
+        >
+          Skip introduction
+        </button>
+      )}
+    </AuthLayout>
+  );
+}
+
+/** Figma 2:72 — illustrative balance card (sample figures, not account data). */
+function BalancePreview() {
+  return (
+    <div className="sfx-card flex min-h-[315px] flex-col justify-center gap-4 px-[21px] py-8" aria-label="Example balance card">
+      <p className="text-[12px] font-medium tracking-[0.08em] text-sfx-muted">TOTAL BALANCE</p>
+      <p className="text-[38px] font-bold leading-none text-sfx-accent">{formatMoney(95467)}</p>
+      <p className="text-[13px] text-sfx-muted">Available balance {formatMoney(5467)}</p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Chip>
+          <ArrowUpRight size={12} /> Deposit
+        </Chip>
+        <Chip>
+          <ArrowDownLeft size={12} /> Withdraw
+        </Chip>
+        <Chip>
+          <ArrowLeftRight size={12} /> Swap
+        </Chip>
+      </div>
+    </div>
+  );
+}
+
+/** Figma 2:98 — security emblem card. */
+function SecurityPreview() {
+  return (
+    <div className="sfx-card flex min-h-[306px] flex-col items-center justify-center gap-4 px-[21px] text-center">
+      <ShieldCheck size={96} strokeWidth={1.2} className="text-sfx-accent" />
+      <p className="text-[13px] font-semibold tracking-[0.1em] text-sfx-accent">SECURITY FIRST</p>
+      <p className="text-[15px] text-sfx-text">Verified access and protected account activity.</p>
+    </div>
+  );
+}
 
 export default function OnboardingPage() {
-    const router = useRouter();
-    const { loading, user } = useHydratedUser();
-    const [index, setIndex] = useState(0);
-    const [submitting, setSubmitting] = useState(false);
-
-    useEffect(() => {
-        if (loading) {
-            return;
-        }
-        if (!user) {
-            router.replace("/login");
-            return;
-        }
-        if (user.mustChangePassword || user.onboardingCompleted) {
-            router.replace(getNextRoute(user));
-        }
-    }, [loading, router, user]);
-
-    const complete = async () => {
-        setSubmitting(true);
-        await completeOnboarding();
-        router.replace("/kyc");
-    };
-
-    const onNext = async () => {
-        if (index < slides.length - 1) {
-            setIndex((prev) => prev + 1);
-            return;
-        }
-        await complete();
-    };
-
-    return (
-        <div className="flex min-h-screen items-center justify-center px-4">
-            <div className="card w-full max-w-xl space-y-6">
-                <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Onboarding {index + 1}/4</p>
-                <div>
-                    <h1 className="text-2xl font-semibold">{slides[index].title}</h1>
-                    <p className="mt-2 text-sm text-zinc-400">{slides[index].description}</p>
-                </div>
-
-                <div className="h-2 w-full rounded-full bg-zinc-800">
-                    <div
-                        className="h-2 rounded-full bg-zinc-100"
-                        style={{ width: `${((index + 1) / slides.length) * 100}%` }}
-                    />
-                </div>
-
-                <div className="flex items-center justify-between">
-                    <button className="btn-secondary" onClick={complete} disabled={submitting}>
-                        Skip
-                    </button>
-                    <button className="btn-primary" onClick={onNext} disabled={submitting}>
-                        {index === slides.length - 1 ? "Finish" : "Next"}
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
+  return (
+    <Suspense>
+      <OnboardingInner />
+    </Suspense>
+  );
 }

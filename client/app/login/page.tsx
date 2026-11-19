@@ -1,144 +1,128 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import { BrandLogo } from "@/components/branding/BrandLogo";
+import { AuthLayout } from "@/components/sfx/AuthLayout";
+import { Alert, Button, ButtonLink, Checkbox, Display, Field, TopBar } from "@/components/sfx/ui";
+import { useHydratedUser } from "@/hooks/useHydratedUser";
 import { loginUser } from "@/services/auth.service";
 import { enablePushNotifications, hasFirebasePushConfig } from "@/services/push-notifications.service";
-import { getNextRoute } from "@/services/session.service";
-import { useHydratedUser } from "@/hooks/useHydratedUser";
+import { getNextRoute, getRememberDevice, setRememberDevice } from "@/services/session.service";
 
-const CAMERA_PERMISSION_CHECK_KEY = "lp_camera_permission_checked";
+const CAMERA_PERMISSION_CHECK_KEY = "sfx_camera_permission_checked";
 
+/** Ask once for camera access so the KYC selfie step works smoothly. Never blocks sign-in. */
 const requestCameraPermission = async (): Promise<void> => {
-    if (typeof window === "undefined" || !navigator.mediaDevices?.getUserMedia) {
-        return;
-    }
-
-    const maybeNavigator = navigator as Navigator & {
-        permissions?: {
-            query: (descriptor: PermissionDescriptor) => Promise<{ state: PermissionState }>;
-        };
-    };
-
-    if (maybeNavigator.permissions?.query) {
-        try {
-            const status = await maybeNavigator.permissions.query({ name: "camera" as PermissionName });
-            if (status.state !== "prompt") {
-                return;
-            }
-        } catch {
-            // Fall back to local marker when Permissions API is unavailable for camera.
-        }
-    } else if (window.localStorage.getItem(CAMERA_PERMISSION_CHECK_KEY) === "true") {
-        return;
-    }
-
+  if (typeof window === "undefined" || !navigator.mediaDevices?.getUserMedia) return;
+  const nav = navigator as Navigator & {
+    permissions?: { query: (d: PermissionDescriptor) => Promise<{ state: PermissionState }> };
+  };
+  if (nav.permissions?.query) {
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        stream.getTracks().forEach((track) => track.stop());
+      const status = await nav.permissions.query({ name: "camera" as PermissionName });
+      if (status.state !== "prompt") return;
     } catch {
-        // Permission denied or unavailable camera should not block login.
-    } finally {
-        window.localStorage.setItem(CAMERA_PERMISSION_CHECK_KEY, "true");
+      // Permissions API may not support "camera"; fall through to the local marker.
     }
+  } else if (window.localStorage.getItem(CAMERA_PERMISSION_CHECK_KEY) === "true") {
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    stream.getTracks().forEach((t) => t.stop());
+  } catch {
+    // Denied or unavailable — not a sign-in problem.
+  } finally {
+    window.localStorage.setItem(CAMERA_PERMISSION_CHECK_KEY, "true");
+  }
 };
 
 const requestPushPermission = async (enabled: boolean): Promise<void> => {
-    if (typeof window === "undefined") {
-        return;
-    }
-
-    if (!enabled) {
-        return;
-    }
-
-    if (!hasFirebasePushConfig()) {
-        return;
-    }
-
-    try {
-        await enablePushNotifications();
-    } catch {
-        // Unsupported browser or denied permission should not block login.
-    }
+  if (typeof window === "undefined" || !enabled || !hasFirebasePushConfig()) return;
+  try {
+    await enablePushNotifications();
+  } catch {
+    // Unsupported browser or denied permission should not block sign-in.
+  }
 };
 
+/** Figma: DARK / 05 Sign in, LIGHT / 16 Sign in */
 export default function LoginPage() {
-    const router = useRouter();
-    const { loading, user } = useHydratedUser();
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const [error, setError] = useState("");
-    const [submitting, setSubmitting] = useState(false);
+  const router = useRouter();
+  const { loading, user } = useHydratedUser();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(() => getRememberDevice());
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-    useEffect(() => {
-        if (!loading && user) {
-            router.replace(getNextRoute(user));
-        }
-    }, [loading, router, user]);
+  useEffect(() => {
+    if (!loading && user) router.replace(getNextRoute(user));
+  }, [loading, router, user]);
 
-    const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        setError("");
-        setSubmitting(true);
+  const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+    setSubmitting(true);
+    try {
+      setRememberDevice(remember);
+      const signedIn = await loginUser(email.trim(), password);
+      await Promise.allSettled([requestPushPermission(Boolean(signedIn.settings?.alerts)), requestCameraPermission()]);
+      router.replace(getNextRoute(signedIn));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Sign in failed. Please try again.");
+      setSubmitting(false);
+    }
+  };
 
-        try {
-            const loggedInUser = await loginUser(email, password);
-            await Promise.allSettled([requestPushPermission(Boolean(loggedInUser.settings?.alerts)), requestCameraPermission()]);
-            router.replace(getNextRoute(loggedInUser));
-        } catch (submitError) {
-            setError(submitError instanceof Error ? submitError.message : "Login failed");
-        } finally {
-            setSubmitting(false);
-        }
-    };
+  return (
+    <AuthLayout>
+      <TopBar backHref="/welcome" caption="WELCOME BACK" />
+      <div className="h-3" />
+      <p className="text-[20px] font-bold tracking-wide text-sfx-accent">SfX LP</p>
+      <Display title="Sign in to your account." subtitle="Your funds and account, right where you left them." />
 
-    return (
-        <div className="flex min-h-screen items-center justify-center px-4">
-            <form onSubmit={onSubmit} className="card w-full max-w-md space-y-4">
-                <div className="text-center">
-                    <div className="mb-4 flex justify-center">
-                        <BrandLogo
-                            variant="mobile"
-                            fallbackText="LP Management"
-                            className="h-[62px] w-auto max-w-[180px] object-contain"
-                            wrapperClassName="text-2xl font-semibold text-white"
-                        />
-                    </div>
-                    <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">LP Management</p>
-                    <h1 className="mt-2 text-2xl font-semibold">Sign in</h1>
-                </div>
-
-                <div className="space-y-2">
-                    <label className="text-sm text-zinc-300">Email</label>
-                    <input
-                        className="input"
-                        type="email"
-                        value={email}
-                        onChange={(event) => setEmail(event.target.value)}
-                        required
-                    />
-                </div>
-
-                <div className="space-y-2">
-                    <label className="text-sm text-zinc-300">Password</label>
-                    <input
-                        className="input"
-                        type="password"
-                        value={password}
-                        onChange={(event) => setPassword(event.target.value)}
-                        required
-                    />
-                </div>
-
-                {error && <p className="rounded-lg bg-red-500/10 p-2 text-sm text-red-300">{error}</p>}
-
-                <button disabled={submitting} className="btn-primary w-full">
-                    {submitting ? "Signing in..." : "Login"}
-                </button>
-            </form>
+      <form onSubmit={onSubmit} className="mt-2 flex flex-col gap-[19px]" noValidate={false}>
+        <Field
+          label="Email address"
+          type="email"
+          autoComplete="email"
+          inputMode="email"
+          placeholder="you@example.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <Field
+          label="Password"
+          type="password"
+          autoComplete="current-password"
+          placeholder="••••••••••••"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          minLength={8}
+          required
+        />
+        <div className="flex items-center justify-between">
+          <Checkbox checked={remember} onChange={setRemember}>
+            Remember this device
+          </Checkbox>
+          <Link href="/forgot-password" className="text-[12px] font-medium text-sfx-accent hover:underline">
+            Forgot password?
+          </Link>
         </div>
-    );
+
+        {error && <Alert>{error}</Alert>}
+
+        <Button type="submit" loading={submitting} className="mt-2">
+          Sign in
+        </Button>
+        <ButtonLink href="/register" variant="secondary">
+          Create an account
+        </ButtonLink>
+      </form>
+    </AuthLayout>
+  );
 }

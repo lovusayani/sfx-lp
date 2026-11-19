@@ -3,27 +3,25 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-import { getNextRoute } from "@/services/session.service";
+import { Medallion, Wordmark } from "@/components/sfx/Brand";
 import { useHydratedUser } from "@/hooks/useHydratedUser";
+import { getNextRoute } from "@/services/session.service";
 
+/** Entry route: signed-in users go to their next step, everyone else sees Welcome. */
 export const SplashGate = () => {
-    const router = useRouter();
-    const { loading, user } = useHydratedUser();
+  const router = useRouter();
+  const { loading, user } = useHydratedUser();
 
-    useEffect(() => {
-        if (loading) {
-            return;
-        }
-        router.replace(getNextRoute(user));
-    }, [loading, router, user]);
+  useEffect(() => {
+    if (loading) return;
+    router.replace(user ? getNextRoute(user) : "/welcome");
+  }, [loading, router, user]);
 
-    return (
-        <div className="flex min-h-screen items-center justify-center bg-zinc-950 px-6">
-            <div className="card w-full max-w-md text-center">
-                <p className="text-xs uppercase tracking-[0.2em] text-zinc-400">LP Management</p>
-                <h1 className="mt-2 text-2xl font-semibold">Loading secure workspace...</h1>
-                <p className="mt-3 text-sm text-zinc-400">Validating your access and onboarding state</p>
-            </div>
-        </div>
-    );
+  return (
+    <div className="sfx sfx-page flex flex-col items-center justify-center gap-6">
+      <Medallion size={132} />
+      <Wordmark size="lg" />
+      <p className="text-[12px] tracking-[0.08em] text-sfx-muted">SECURING YOUR SESSION…</p>
+    </div>
+  );
 };
