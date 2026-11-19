@@ -85,9 +85,45 @@ if [[ -f $ENV_FILE ]] && grep -q '^MONGO_URI=' "$ENV_FILE"; then
   ok "Database already configured — keeping it"
 else
   if ! ss -ltnH 'sport = :27017' | grep -q .; then
-    echo "  MongoDB is not running on this server (Curreex may use a hosted database)."
-    read -r -s -p "  Paste a MongoDB connection string for Swiss Liquidity (hidden): " SFX_MONGO_URI; echo
+    # Curreex uses a hosted MongoDB (e.g. Atlas). Reuse the same cluster host, with a NEW
+    # database ($DB_NAME) and a NEW database user created by you in the Atlas dashboard.
+    CUR_URI=$(grep -hE '^[[:space:]]*MONGO_URI[[:space:]]*=' /home/curreex/htdocs/curreex.com/server/.env 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '"'"'"' ' || true)
+    SCHEME=$(sed -nE 's#^(mongodb(\+srv)?)://.*#\1#p' <<<"$CUR_URI")
+    HOSTPART=$(sed -nE 's#^mongodb(\+srv)?://([^@/]*@)?([^/?]+).*#\3#p' <<<"$CUR_URI")
+    echo "  MongoDB is hosted outside this server (Curreex uses: ${SCHEME:-?}://***@${HOSTPART:-unknown})."
+    if [[ -n "$HOSTPART" ]]; then
+      echo "  Swiss Liquidity will use the SAME cluster with its OWN database '$DB_NAME' and its OWN user."
+      read -r -p "  New database username you created [sfxlp_app]: " DBU; DBU=${DBU:-sfxlp_app}
+      read -r -s -p "  That user's password (hidden): " DBP; echo
+      ENC_U=$(python3 -c 'import sys,urllib.parse;print(urllib.parse.quote(sys.argv[1],safe=""))' "$DBU")
+      ENC_P=$(python3 -c 'import sys,urllib.parse;print(urllib.parse.quote(sys.argv[1],safe=""))' "$DBP")
+      unset DBP
+      SFX_MONGO_URI="$SCHEME://$ENC_U:$ENC_P@$HOSTPART/$DB_NAME?retryWrites=true&w=majority&authSource=admin"
+    else
+      read -r -s -p "  Paste a MongoDB connection string for Swiss Liquidity (hidden): " SFX_MONGO_URI; echo
+    fi
     [[ -n "$SFX_MONGO_URI" ]] || fail "A database connection is required."
+    # Prove the login works and can write to its own database (test document is removed again).
+    T=$(mktemp -d); chown "$U:$U" "$T"
+    sudo -u "$U" bash -c "cd '$T' && PATH='$H/.node/bin:\$PATH' npm init -y >/dev/null && PATH='$H/.node/bin:\$PATH' npm i --silent mongodb@6 >/dev/null"
+    cat > "$T/check.js" <<'JS'
+const { MongoClient } = require("mongodb");
+(async () => {
+  const c = await MongoClient.connect(process.env.URI, { serverSelectionTimeoutMS: 15000 });
+  const col = c.db(process.env.DB).collection("_setup_check");
+  const { insertedId } = await col.insertOne({ at: new Date() });
+  await col.deleteOne({ _id: insertedId });
+  await col.drop().catch(() => {});
+  console.log("OK");
+  await c.close();
+})().catch((e) => { console.log("DB_ERROR " + e.message.replace(/mongodb(\+srv)?:\/\/[^@]*@/g, "mongodb://***@")); process.exit(2); });
+JS
+    trap - ERR; set +e
+    RES=$(cd "$T" && URI=$SFX_MONGO_URI DB=$DB_NAME "$H/.node/bin/node" check.js 2>&1); RC=$?
+    set -e; trap 'fail "Stopped at line $LINENO. Nothing in Curreex was changed. Send this screen to Claude."' ERR
+    rm -rf "$T"
+    [[ $RC -eq 0 ]] || fail "Could not use the new database user: ${RES#DB_ERROR }  (check the username/password and that it has readWrite on $DB_NAME)"
+    ok "Connected to the shared cluster as the new user; database $DB_NAME is writable"
   else
     DB_PASS=$(openssl rand -hex 24)
     T=$(mktemp -d); chown "$U:$U" "$T"
