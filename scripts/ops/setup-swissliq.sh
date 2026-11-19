@@ -90,9 +90,15 @@ else
     CUR_URI=$(grep -hE '^[[:space:]]*MONGO_URI[[:space:]]*=' /home/curreex/htdocs/curreex.com/server/.env 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '"'"'"' ' || true)
     SCHEME=$(sed -nE 's#^(mongodb(\+srv)?)://.*#\1#p' <<<"$CUR_URI")
     HOSTPART=$(sed -nE 's#^mongodb(\+srv)?://([^@/]*@)?([^/?]+).*#\3#p' <<<"$CUR_URI")
-    echo "  MongoDB is hosted outside this server (Curreex uses: ${SCHEME:-?}://***@${HOSTPART:-unknown})."
+    if [[ -n "${SFX_MONGO_HOST:-}" ]]; then
+      # Swiss Liquidity has its own Atlas cluster (separate from Curreex's).
+      SCHEME=mongodb+srv; HOSTPART=$SFX_MONGO_HOST
+      echo "  MongoDB is hosted outside this server (Swiss Liquidity cluster: $SCHEME://***@$HOSTPART)."
+    else
+      echo "  MongoDB is hosted outside this server (Curreex uses: ${SCHEME:-?}://***@${HOSTPART:-unknown})."
+    fi
     if [[ -n "$HOSTPART" ]]; then
-      echo "  Swiss Liquidity will use the SAME cluster with its OWN database '$DB_NAME' and its OWN user."
+      echo "  Swiss Liquidity will use cluster $HOSTPART with its OWN database '$DB_NAME' and its OWN user."
       read -r -p "  New database username you created [sfxlp_app]: " DBU; DBU=${DBU:-sfxlp_app}
       read -r -s -p "  That user's password (hidden): " DBP; echo
       ENC_U=$(python3 -c 'import sys,urllib.parse;print(urllib.parse.quote(sys.argv[1],safe=""))' "$DBU")
