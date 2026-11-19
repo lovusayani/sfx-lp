@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, ShieldCheck } from "lucide-react";
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight } from "lucide-react";
 
 import { AuthLayout } from "@/components/sfx/AuthLayout";
 import { GoldHero } from "@/components/sfx/Hero";
@@ -107,13 +107,15 @@ function BalancePreview() {
     <div className="sfx-card flex min-h-[315px] flex-col justify-center gap-4 px-[21px] py-8" aria-label="Example balance card">
       <p className="text-[12px] font-medium tracking-[0.08em] text-sfx-muted">TOTAL BALANCE</p>
       <p className="text-[38px] font-bold leading-none text-sfx-accent">{formatMoney(95467)}</p>
-      <p className="text-[13px] text-sfx-muted">Available balance {formatMoney(5467)}</p>
+      <p className="text-[13px] text-sfx-text">
+        Available balance&nbsp;&nbsp;{formatMoney(5467)}
+      </p>
       <div className="mt-4 flex flex-wrap gap-2">
         <Chip>
-          <ArrowUpRight size={12} /> Deposit
+          <ArrowUpRight size={12} /> Send
         </Chip>
         <Chip>
-          <ArrowDownLeft size={12} /> Withdraw
+          <ArrowDownLeft size={12} /> Receive
         </Chip>
         <Chip>
           <ArrowLeftRight size={12} /> Swap
@@ -127,7 +129,10 @@ function BalancePreview() {
 function SecurityPreview() {
   return (
     <div className="sfx-card flex min-h-[306px] flex-col items-center justify-center gap-4 px-[21px] text-center">
-      <ShieldCheck size={96} strokeWidth={1.2} className="text-sfx-accent" />
+      <svg width="96" height="96" viewBox="0 0 96 96" aria-hidden className="text-sfx-accent">
+        <rect x="23" y="23" width="50" height="50" rx="2" transform="rotate(45 48 48)" fill="none" stroke="currentColor" strokeWidth="6" />
+        <rect x="37" y="37" width="22" height="22" rx="1.5" transform="rotate(45 48 48)" fill="currentColor" />
+      </svg>
       <p className="text-[13px] font-semibold tracking-[0.1em] text-sfx-accent">SECURITY FIRST</p>
       <p className="text-[15px] text-sfx-text">Verified access and protected account activity.</p>
     </div>
