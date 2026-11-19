@@ -1,99 +1,92 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronLeft } from "lucide-react";
+import { Bell } from "lucide-react";
 
-import { TopbarPageFrame } from "@/components/dashboard/TopbarPageFrame";
+import { EmptyState, Skeleton } from "@/components/sfx/ActivityList";
+import { cn } from "@/components/sfx/cn";
+import { formatDate } from "@/components/sfx/format";
+import { Sheet } from "@/components/sfx/kit";
+import { Alert, Display, Spinner, TopBar } from "@/components/sfx/ui";
 import { getMyNoticeById, getMyNotices, NoticeListItem } from "@/services/user.service";
 
+/** Notices from the desk. Opening one marks it read. */
 export default function NoticesPage() {
-    const [notices, setNotices] = useState<NoticeListItem[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
-    const [selected, setSelected] = useState<NoticeListItem | null>(null);
-    const [detailLoading, setDetailLoading] = useState(false);
+  const [notices, setNotices] = useState<NoticeListItem[] | null>(null);
+  const [selected, setSelected] = useState<NoticeListItem | null>(null);
+  const [opening, setOpening] = useState<string | null>(null);
+  const [error, setError] = useState("");
 
-    useEffect(() => {
-        getMyNotices()
-            .then(setNotices)
-            .catch((err) => setError(err instanceof Error ? err.message : "Failed to load notices"))
-            .finally(() => setLoading(false));
-    }, []);
+  useEffect(() => {
+    getMyNotices().then(setNotices, (e) => {
+      setNotices([]);
+      setError(e instanceof Error ? e.message : "Could not load notices.");
+    });
+  }, []);
 
-    const onOpenNotice = async (notice: NoticeListItem) => {
-        setDetailLoading(true);
-        setError("");
-        try {
-            const full = await getMyNoticeById(notice.id);
-            setSelected(full);
-            setNotices((prev) => prev.map((item) => (item.id === full.id ? { ...item, read: true } : item)));
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to load notice");
-        } finally {
-            setDetailLoading(false);
-        }
-    };
-
-    if (selected) {
-        return (
-            <TopbarPageFrame title="Notice">
-                <button
-                    type="button"
-                    onClick={() => setSelected(null)}
-                    className="inline-flex items-center gap-1 text-sm text-zinc-400 hover:text-zinc-200"
-                >
-                    <ChevronLeft className="h-4 w-4" /> Back to notices
-                </button>
-
-                <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                    <h1 className="text-lg font-semibold text-white">{selected.title}</h1>
-                    <p className="mt-1 text-xs text-zinc-500">
-                        {new Date(selected.createdAt).toLocaleString()}
-                    </p>
-                    <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-zinc-300">
-                        {selected.message}
-                    </p>
-                </div>
-            </TopbarPageFrame>
-        );
+  const open = async (n: NoticeListItem) => {
+    setOpening(n.id);
+    setError("");
+    try {
+      const full = await getMyNoticeById(n.id);
+      setSelected(full);
+      setNotices((prev) => (prev || []).map((x) => (x.id === full.id ? { ...x, read: true } : x)));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not open this notice.");
+    } finally {
+      setOpening(null);
     }
+  };
 
-    return (
-        <TopbarPageFrame title="Notices">
-            <h1 className="text-xl font-semibold">Notices</h1>
+  const unread = (notices || []).filter((n) => !n.read).length;
 
-            {loading ? (
-                <p className="text-sm text-zinc-400">Loading...</p>
-            ) : error ? (
-                <p className="text-sm text-red-400">{error}</p>
-            ) : notices.length === 0 ? (
-                <p className="text-sm text-zinc-400">No notices yet.</p>
-            ) : (
-                <div className="space-y-2">
-                    {notices.map((notice) => (
-                        <button
-                            key={notice.id}
-                            type="button"
-                            onClick={() => onOpenNotice(notice)}
-                            disabled={detailLoading}
-                            className="flex w-full items-start justify-between gap-3 rounded-xl border border-white/10 bg-white/5 p-3 text-left transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                            <div className="min-w-0">
-                                <div className="flex items-center gap-2">
-                                    {!notice.read && <span className="h-2 w-2 shrink-0 rounded-full bg-cyan-400" />}
-                                    <span className={`truncate text-sm ${notice.read ? "text-zinc-300" : "font-semibold text-white"}`}>
-                                        {notice.title}
-                                    </span>
-                                </div>
-                                <p className="mt-1 truncate text-xs text-zinc-500">{notice.message}</p>
-                            </div>
-                            <span className="shrink-0 text-xs text-zinc-500">
-                                {new Date(notice.createdAt).toLocaleDateString()}
-                            </span>
-                        </button>
-                    ))}
-                </div>
-            )}
-        </TopbarPageFrame>
-    );
+  return (
+    <div className="sfx-enter flex flex-col gap-[19px]">
+      <TopBar caption="NOTICES" />
+      <Display size="md" title="Notices" subtitle={unread ? `${unread} unread` : "Updates and announcements from Swiss Liquidity."} />
+      {error && <Alert>{error}</Alert>}
+      {notices === null ? (
+        <Skeleton className="h-[240px]" />
+      ) : notices.length === 0 ? (
+        <EmptyState title="You’re all caught up" body="New announcements will appear here." />
+      ) : (
+        <ul className="sfx-card max-w-[720px] divide-y divide-sfx-line px-[21px] py-1">
+          {notices.map((n) => (
+            <li key={n.id}>
+              <button
+                type="button"
+                onClick={() => open(n)}
+                disabled={Boolean(opening)}
+                className="flex w-full items-start gap-3 py-3.5 text-left disabled:cursor-wait"
+              >
+                <span
+                  className={cn(
+                    "mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
+                    n.read ? "bg-sfx-surface-2 text-sfx-muted" : "bg-sfx-gold-soft text-sfx-accent"
+                  )}
+                >
+                  {opening === n.id ? <Spinner /> : <Bell size={16} />}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className={cn("block truncate text-[14px]", n.read ? "text-sfx-text/80" : "font-semibold text-sfx-text")}>
+                    {n.title}
+                  </span>
+                  <span className="block truncate text-[12px] text-sfx-muted">{n.message}</span>
+                </span>
+                <span className="flex shrink-0 flex-col items-end gap-1.5">
+                  <span className="text-[11px] text-sfx-muted">{formatDate(n.createdAt)}</span>
+                  {!n.read && <span className="h-2 w-2 rounded-full bg-sfx-gold" aria-label="Unread" />}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <Sheet open={Boolean(selected)} onClose={() => setSelected(null)} title={selected?.title || ""}>
+        <p className="mb-4 text-[12px] text-sfx-muted">{selected ? new Date(selected.createdAt).toLocaleString("en-GB") : ""}</p>
+        <p className="max-h-[55vh] overflow-y-auto whitespace-pre-wrap text-[14px] leading-relaxed text-sfx-text/90">{selected?.message}</p>
+      </Sheet>
+    </div>
+  );
 }

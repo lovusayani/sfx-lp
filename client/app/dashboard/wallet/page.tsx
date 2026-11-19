@@ -1,299 +1,284 @@
 "use client";
 
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { Lock } from "lucide-react";
-import { Aldrich } from "next/font/google";
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Lock } from "lucide-react";
 
-import { DashboardTopbar } from "@/mvc/frontend/views/dashboard/topbar.view";
-import {
-    getProfile,
-    getWalletBalances,
-    getWalletSwapHistory,
-    swapWalletBalance,
-} from "@/services/user.service";
-import { getSession } from "@/services/session.service";
-import { WalletSwapDirection, WalletSwapHistoryRecord } from "@/types";
+import { ActivityItem, loadActivity } from "@/components/sfx/activity";
+import { ActivityList, EmptyState, Skeleton } from "@/components/sfx/ActivityList";
+import { cn } from "@/components/sfx/cn";
+import { formatMoney } from "@/components/sfx/format";
+import { Segmented, Sheet } from "@/components/sfx/kit";
+import { Alert, Button, Field, SectionTitle, TopBar } from "@/components/sfx/ui";
+import { useHydratedUser } from "@/hooks/useHydratedUser";
+import { getWalletBalances, swapWalletBalance } from "@/services/user.service";
+import { WalletBalances, WalletSwapDirection } from "@/types";
 
-const aldrich = Aldrich({
-    weight: "400",
-    subsets: ["latin"],
-});
-
+/** Wallet: balances, transfers between Main and Trade, entry to deposit / withdraw. */
 export default function WalletPage() {
-    const [deviceWidth, setDeviceWidth] = useState<number | null>(null);
-    const [mainWalletBalance, setMainWalletBalance] = useState<number>(
-        getSession()?.user?.mainWalletBalance ?? 0
-    );
-    const [lockInBalance, setLockInBalance] = useState<number>(
-        getSession()?.user?.lockInBalance ?? 500
-    );
-    const [tradeWalletBalance, setTradeWalletBalance] = useState<number>(0);
-    const [openSwapModal, setOpenSwapModal] = useState(false);
-    const [swapDirection, setSwapDirection] = useState<WalletSwapDirection>("main_to_trade");
-    const [swapAmount, setSwapAmount] = useState("");
-    const [swapLoading, setSwapLoading] = useState(false);
-    const [swapError, setSwapError] = useState("");
-    const [swapHistory, setSwapHistory] = useState<WalletSwapHistoryRecord[]>([]);
-    const [historyLoading, setHistoryLoading] = useState(true);
+  const { user } = useHydratedUser();
+  const [balances, setBalances] = useState<WalletBalances | null>(null);
+  const [transfers, setTransfers] = useState<ActivityItem[] | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [notice, setNotice] = useState("");
 
-    const formattedMainWallet = useMemo(
-        () => Number(mainWalletBalance || 0).toFixed(2),
-        [mainWalletBalance]
-    );
+  const refresh = useCallback(
+    () =>
+      Promise.allSettled([getWalletBalances(), loadActivity()]).then(([b, a]) => {
+        setBalances(b.status === "fulfilled" ? b.value : { mainWalletBalance: 0, tradeWalletBalance: 0 });
+        setTransfers(a.status === "fulfilled" ? a.value.filter((i) => i.kind === "transfer") : []);
+      }),
+    []
+  );
 
-    const formattedTradeWallet = useMemo(
-        () => Number(tradeWalletBalance || 0).toFixed(2),
-        [tradeWalletBalance]
-    );
-
-    const formattedLockInBalance = useMemo(
-        () => Number(lockInBalance || 0).toFixed(2),
-        [lockInBalance]
-    );
-
-    useLayoutEffect(() => {
-        const updateWidth = () => {
-            setDeviceWidth(window.innerWidth || document.documentElement.clientWidth || 360);
-        };
-
-        updateWidth();
-        window.addEventListener("resize", updateWidth);
-        return () => window.removeEventListener("resize", updateWidth);
-    }, []);
-
-    useEffect(() => {
-        const loadWalletState = async () => {
-            try {
-                const profile = await getProfile();
-                setMainWalletBalance(profile.mainWalletBalance ?? 0);
-                setLockInBalance(profile.lockInBalance ?? 500);
-                const balances = await getWalletBalances();
-                setMainWalletBalance(balances.mainWalletBalance ?? profile.mainWalletBalance ?? 0);
-                setTradeWalletBalance(balances.tradeWalletBalance ?? 0);
-                setLockInBalance(balances.lockInBalance ?? profile.lockInBalance ?? 500);
-                const history = await getWalletSwapHistory();
-                setSwapHistory(history);
-            } catch {
-                // Keep session/fallback balance on failure
-            } finally {
-                setHistoryLoading(false);
-            }
-        };
-
-        loadWalletState();
-    }, []);
-
-    const onSwapSubmit = async () => {
-        const amount = Number(swapAmount);
-        if (!Number.isFinite(amount) || amount <= 0) {
-            setSwapError("Please enter a valid amount");
-            return;
-        }
-
-        setSwapLoading(true);
-        setSwapError("");
-
-        try {
-            const balances = await swapWalletBalance(swapDirection, amount);
-            setMainWalletBalance(balances.mainWalletBalance ?? 0);
-            setTradeWalletBalance(balances.tradeWalletBalance ?? 0);
-            setLockInBalance(balances.lockInBalance ?? lockInBalance);
-            const history = await getWalletSwapHistory();
-            setSwapHistory(history);
-            setSwapAmount("");
-            setOpenSwapModal(false);
-        } catch (error) {
-            setSwapError(error instanceof Error ? error.message : "Swap failed");
-        } finally {
-            setSwapLoading(false);
-        }
+  useEffect(() => {
+    let alive = true;
+    Promise.allSettled([getWalletBalances(), loadActivity()]).then(([b, a]) => {
+      if (!alive) return;
+      setBalances(b.status === "fulfilled" ? b.value : { mainWalletBalance: 0, tradeWalletBalance: 0 });
+      setTransfers(a.status === "fulfilled" ? a.value.filter((i) => i.kind === "transfer") : []);
+    });
+    return () => {
+      alive = false;
     };
+  }, []);
 
-    return (
-        <div className="min-h-screen w-full bg-[radial-gradient(circle_at_top,_#11286f_0%,_#02083f_32%,_#02062b_72%,_#01041f_100%)] pb-28">
-            {/* ** Topbar ** */}
-            <div className="pointer-events-none fixed inset-x-0 top-0 z-[120]">
-                <div
-                    className="pointer-events-auto mx-auto"
-                    style={deviceWidth ? { width: `${deviceWidth}px`, maxWidth: `${deviceWidth}px` } : undefined}
-                >
-                    <DashboardTopbar title="Wallet" showBack />
-                </div>
-            </div>
+  const main = balances?.mainWalletBalance ?? 0;
+  const trade = balances?.tradeWalletBalance ?? 0;
+  const lockIn = balances?.lockInBalance ?? user?.lockInBalance ?? 0;
+  const kycApproved = user?.kycStatus === "approved";
 
-            <section className="px-3 pt-28 sm:px-4">
-                <h1 className={`${aldrich.className} text-center text-[26px] font-normal text-white`}>Trade Wallet Balance</h1>
-            </section>
+  return (
+    <div className="sfx-enter flex flex-col gap-[19px]">
+      <TopBar backHref="/dashboard" caption="WALLET" />
 
-            <section className="mt-4 w-full px-3 sm:px-4">
-                <div className="mx-auto w-full space-y-3">
-                    {/* ** Wallet Cards + Swap ** */}
-                    <div className="relative w-full space-y-3 pb-2">
-                        <article className="relative flex min-h-[80px] w-full items-center overflow-hidden rounded-md bg-[linear-gradient(120deg,#7b1fa2_0%,#38228f_48%,#2ea5d8_100%)] px-4 py-6 text-white">
-                            <div className="wallet-shimmer-overlay" aria-hidden="true" />
-                            <div className="flex w-full items-center justify-between gap-3">
-                                <p className="text-base leading-none sm:text-lg">Main Wallet</p>
-                                <p className="text-xl leading-none sm:text-2xl">{formattedMainWallet}</p>
-                            </div>
-                        </article>
-
-                        <article className="relative flex min-h-[80px] w-full items-center overflow-hidden rounded-md bg-[linear-gradient(120deg,#7b1fa2_0%,#38228f_48%,#2ea5d8_100%)] px-4 py-6 text-white">
-                            <div className="wallet-shimmer-overlay" aria-hidden="true" />
-                            <div className="flex w-full items-center justify-between gap-3">
-                                <div>
-                                    <p className="text-base leading-none sm:text-lg">Trade Wallet</p>
-                                    <div className="mt-1 flex items-center gap-1 text-white/70">
-                                        <Lock className="h-3 w-3" />
-                                        <span className="text-xs font-bold">{formattedLockInBalance}$</span>
-                                    </div>
-                                </div>
-                                <p className="text-xl leading-none sm:text-2xl">{formattedTradeWallet}</p>
-                            </div>
-                        </article>
-
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setSwapError("");
-                                setOpenSwapModal(true);
-                            }}
-                            className="absolute left-1/2 top-1/2 inline-grid h-[86px] w-[86px] -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-4 border-black bg-[#0f1574] text-base font-semibold leading-none tracking-wide text-white"
-                        >
-                            SWAP
-                        </button>
-                    </div>
-
-                    {/* ** Deposit / Withdraw ** */}
-                    <div className="grid w-full grid-cols-2 gap-3">
-                        <Link
-                            href="/dashboard/deposite"
-                            className="h-[52px] w-full rounded-md border border-[#5d6ae5]/40 bg-[linear-gradient(130deg,#22185d_0%,#1a1853_62%,#121a49_100%)] text-base text-[#0010ff] sm:h-[56px] sm:text-lg"
-                            style={{ clipPath: "polygon(0 0, 100% 0, 78% 100%, 0 100%)" }}
-                        >
-                            <span className="inline-flex h-full w-full items-center justify-center">Deposite</span>
-                        </Link>
-
-                        <Link
-                            href="/dashboard/withdraw"
-                            className="h-[52px] w-full rounded-md border border-[#5d6ae5]/40 bg-[linear-gradient(130deg,#122558_0%,#0f234f_60%,#0b1f44_100%)] text-base text-white sm:h-[56px] sm:text-lg"
-                            style={{ clipPath: "polygon(22% 0, 100% 0, 100% 100%, 0 100%)" }}
-                        >
-                            <span className="inline-flex h-full w-full items-center justify-center">Withdraw</span>
-                        </Link>
-                    </div>
-
-                    {/* ** Transaction History ** */}
-                    <div className="pt-16">
-                        <h2 className="text-xl uppercase tracking-wide text-white">Transaction History</h2>
-
-                        <div className="mt-3 space-y-2">
-                            {historyLoading && (
-                                <article className="rounded-xl border border-white/10 bg-[#0f1638] px-3 py-3 text-sm text-zinc-300">
-                                    Loading swap history...
-                                </article>
-                            )}
-
-                            {!historyLoading && swapHistory.length === 0 && (
-                                <article className="rounded-xl border border-white/10 bg-[#0f1638] px-3 py-3 text-sm text-zinc-300">
-                                    No swap history yet.
-                                </article>
-                            )}
-
-                            {!historyLoading &&
-                                swapHistory.map((item) => (
-                                    <article
-                                        key={item.id}
-                                        className="flex items-center justify-between rounded-xl border border-white/10 bg-[#0f1638] px-3 py-2.5"
-                                    >
-                                        <div>
-                                            <p className="text-sm font-semibold">{Number(item.amount).toFixed(2)} USDT</p>
-                                            <p className="text-xs text-zinc-400">
-                                                {item.direction === "main_to_trade"
-                                                    ? "Main to Trade"
-                                                    : "Trade to Main"}
-                                            </p>
-                                        </div>
-
-                                        <div className="text-right">
-                                            <p className="text-xs text-zinc-300">
-                                                {item.createdAt
-                                                    ? new Date(item.createdAt).toLocaleDateString()
-                                                    : "-"}
-                                            </p>
-                                            <p className="text-xs text-zinc-400">
-                                                {item.createdAt
-                                                    ? new Date(item.createdAt).toLocaleTimeString()
-                                                    : "-"}
-                                            </p>
-                                        </div>
-                                    </article>
-                                ))}
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            {openSwapModal && (
-                <div className="fixed inset-0 z-[230] grid place-items-center bg-black/70 px-4">
-                    <div className="w-full max-w-md rounded-2xl border border-white/20 bg-[#0b1235] p-4 text-white">
-                        <div className="mb-3 flex items-center justify-between">
-                            <h3 className="text-lg font-semibold">Swap Wallet Balance</h3>
-                            <button
-                                type="button"
-                                className="btn-secondary px-3 py-1 text-xs"
-                                onClick={() => setOpenSwapModal(false)}
-                            >
-                                Close
-                            </button>
-                        </div>
-
-                        <div className="space-y-1 rounded-lg border border-white/10 bg-[#10183f] p-3 text-sm">
-                            <p>Main Wallet: {formattedMainWallet}</p>
-                            <p>Trade Wallet: {formattedTradeWallet}</p>
-                            <p>Min Lock In (Trade): {formattedLockInBalance}</p>
-                        </div>
-
-                        <div className="mt-3 space-y-3">
-                            <div className="space-y-1">
-                                <label className="text-sm text-zinc-200">Swap Direction</label>
-                                <select
-                                    className="w-full rounded-lg border border-white/20 bg-[#10183f] px-3 py-2 text-sm text-white outline-none"
-                                    value={swapDirection}
-                                    onChange={(event) => setSwapDirection(event.target.value as WalletSwapDirection)}
-                                >
-                                    <option value="main_to_trade">Main Wallet to Trade Wallet</option>
-                                    <option value="trade_to_main">Trade Wallet to Main Wallet</option>
-                                </select>
-                            </div>
-
-                            <div className="space-y-1">
-                                <label className="text-sm text-zinc-200">Amount</label>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={swapAmount}
-                                    onChange={(event) => setSwapAmount(event.target.value)}
-                                    className="w-full rounded-lg border border-white/20 bg-[#10183f] px-3 py-2 text-sm text-white outline-none"
-                                    placeholder="Enter amount"
-                                />
-                            </div>
-
-                            {swapError && <p className="text-sm text-rose-300">{swapError}</p>}
-
-                            <button
-                                type="button"
-                                onClick={onSwapSubmit}
-                                disabled={swapLoading}
-                                className="btn-primary w-full"
-                            >
-                                {swapLoading ? "Swapping..." : "Confirm Swap"}
-                            </button>
-                        </div>
-                    </div>
-                </div>
+      <div className="grid gap-[19px] lg:grid-cols-[1.15fr_1fr] lg:items-start">
+        <div className="flex flex-col gap-[19px]">
+          <section className="sfx-card flex flex-col gap-3 p-[21px]" aria-label="Total balance">
+            <p className="text-[12px] font-medium tracking-[0.08em] text-sfx-muted">TOTAL BALANCE</p>
+            {balances ? (
+              <p className="text-[38px] font-bold leading-tight tracking-tight text-sfx-accent tabular-nums md:text-[44px]">
+                {formatMoney(main + trade)}
+              </p>
+            ) : (
+              <Skeleton className="h-11 w-56" />
             )}
+            <p className="text-[13px] text-sfx-muted">USDT across your Main and Trade wallets.</p>
+          </section>
+
+          <div className="relative grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <WalletTile label="MAIN WALLET" hint="Deposits & withdrawals" value={balances ? formatMoney(main) : null} />
+            <WalletTile
+              label="TRADE WALLET"
+              hint={
+                lockIn > 0 ? (
+                  <span className="inline-flex items-center gap-1">
+                    <Lock size={11} /> {formatMoney(lockIn, { decimals: 0 })} minimum kept
+                  </span>
+                ) : (
+                  "Used for trading"
+                )
+              }
+              value={balances ? formatMoney(trade) : null}
+            />
+          </div>
+
+          {notice && <Alert tone="success">{notice}</Alert>}
+
+          <div className="grid grid-cols-3 gap-3">
+            <ActionTile icon={ArrowLeftRight} label="Transfer" onClick={() => (setNotice(""), setSheetOpen(true))} />
+            <ActionTile icon={ArrowUpRight} label="Deposit" href="/dashboard/deposite" disabled={!kycApproved} />
+            <ActionTile icon={ArrowDownLeft} label="Withdraw" href="/dashboard/withdraw" disabled={!kycApproved} />
+          </div>
+          {!kycApproved && user && (
+            <p className="-mt-2 text-[12px] text-sfx-muted">
+              Deposits and withdrawals unlock after{" "}
+              <Link href={user.kycStatus === "pending" ? "/kyc/status" : "/kyc"} className="font-semibold text-sfx-accent">
+                identity verification
+              </Link>
+              .
+            </p>
+          )}
         </div>
+
+        <section className="flex flex-col gap-4" aria-label="Transfers">
+          <SectionTitle
+            action={
+              <Link href="/dashboard/history" className="text-[12px] font-semibold text-sfx-accent hover:underline">
+                All activity
+              </Link>
+            }
+          >
+            Transfers
+          </SectionTitle>
+          {transfers === null ? (
+            <Skeleton className="h-[160px]" />
+          ) : transfers.length === 0 ? (
+            <EmptyState title="No transfers yet" body="Move funds between your Main and Trade wallets with Transfer." />
+          ) : (
+            <ActivityList items={transfers.slice(0, 8)} showDates />
+          )}
+        </section>
+      </div>
+
+      <TransferSheet
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        main={main}
+        trade={trade}
+        lockIn={lockIn}
+        onDone={async (msg) => {
+          setSheetOpen(false);
+          setNotice(msg);
+          await refresh();
+        }}
+      />
+    </div>
+  );
+}
+
+function WalletTile({ label, hint, value }: { label: string; hint: React.ReactNode; value: string | null }) {
+  return (
+    <div className="sfx-tile flex flex-col gap-2 p-5">
+      <p className="text-[11px] font-medium tracking-[0.06em] text-sfx-muted">{label}</p>
+      {value === null ? <Skeleton className="h-7 w-28" /> : <p className="text-[22px] font-semibold tabular-nums text-sfx-text">{value}</p>}
+      <p className="text-[11px] text-sfx-muted">{hint}</p>
+    </div>
+  );
+}
+
+function ActionTile({
+  icon: Icon,
+  label,
+  href,
+  onClick,
+  disabled,
+}: {
+  icon: typeof ArrowUpRight;
+  label: string;
+  href?: string;
+  onClick?: () => void;
+  disabled?: boolean;
+}) {
+  const cls = cn(
+    "flex flex-col items-center gap-2 rounded-[22px] border border-sfx-line bg-sfx-surface-2 py-4 text-[12px] font-semibold text-sfx-text transition",
+    disabled ? "cursor-not-allowed opacity-45" : "hover:border-sfx-border-strong"
+  );
+  const body = (
+    <>
+      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-sfx-gold-soft text-sfx-accent">
+        <Icon size={18} />
+      </span>
+      {label}
+    </>
+  );
+  if (disabled) {
+    return (
+      <span className={cls} aria-disabled title="Available after verification">
+        {body}
+      </span>
     );
+  }
+  return href ? (
+    <Link href={href} className={cls}>
+      {body}
+    </Link>
+  ) : (
+    <button type="button" onClick={onClick} className={cls}>
+      {body}
+    </button>
+  );
+}
+
+function TransferSheet({
+  open,
+  onClose,
+  main,
+  trade,
+  lockIn,
+  onDone,
+}: {
+  open: boolean;
+  onClose: () => void;
+  main: number;
+  trade: number;
+  lockIn: number;
+  onDone: (message: string) => void;
+}) {
+  const [direction, setDirection] = useState<WalletSwapDirection>("main_to_trade");
+  const [amount, setAmount] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setAmount("");
+      setError("");
+    }
+  }, [open]);
+
+  const available = direction === "main_to_trade" ? main : Math.max(trade - lockIn, 0);
+  const round = (n: number) => Math.floor(n * 100) / 100;
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    const n = Number(amount);
+    if (!Number.isFinite(n) || n <= 0) return setError("Enter an amount greater than zero.");
+    if (n > available + 1e-9) return setError(`You can move up to ${formatMoney(available)}.`);
+    setBusy(true);
+    setError("");
+    try {
+      await swapWalletBalance(direction, n);
+      onDone(`${formatMoney(n)} moved to your ${direction === "main_to_trade" ? "Trade" : "Main"} wallet.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Transfer failed. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Sheet open={open} onClose={onClose} title="Transfer between wallets">
+      <form onSubmit={submit} className="flex flex-col gap-5">
+        <Segmented
+          label="Direction"
+          value={direction}
+          onChange={(v) => (setDirection(v), setError(""))}
+          options={[
+            { value: "main_to_trade", label: "Main → Trade" },
+            { value: "trade_to_main", label: "Trade → Main" },
+          ]}
+        />
+        <Field
+          label="Amount (USDT)"
+          type="number"
+          inputMode="decimal"
+          min="0"
+          step="0.01"
+          placeholder="0.00"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          error={error || undefined}
+          hint={
+            direction === "trade_to_main" && lockIn > 0
+              ? `Available ${formatMoney(available)} · ${formatMoney(lockIn, { decimals: 0 })} stays locked in Trade`
+              : `Available ${formatMoney(available)}`
+          }
+          trailing={
+            <button
+              type="button"
+              onClick={() => setAmount(String(round(available)))}
+              className="px-4 text-[11px] font-semibold uppercase tracking-wide text-sfx-accent"
+            >
+              Max
+            </button>
+          }
+          autoFocus
+        />
+        <Button type="submit" loading={busy} disabled={available <= 0}>
+          Confirm transfer
+        </Button>
+      </form>
+    </Sheet>
+  );
 }

@@ -1,7 +1,6 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { BrokerSupport } from "@/design/brokerview/BrokerSupport";
-
-export default function BrokerSupportPage() {
-    return <BrokerSupport />;
+/** Trading support now lives on the shared Support page. */
+export default function TradeSupportPage() {
+  redirect("/dashboard/support");
 }

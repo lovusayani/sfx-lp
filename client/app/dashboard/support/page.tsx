@@ -1,38 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { BookOpen, CircleHelp } from "lucide-react";
 
-import { TopbarPageFrame } from "@/components/dashboard/TopbarPageFrame";
-import { getPageContent, UserPageContent } from "@/services/user.service";
+import { ContentPage } from "@/components/sfx/ContentPage";
+import { MenuList, MenuRow } from "@/components/sfx/kit";
 
 export default function SupportPage() {
-    const [data, setData] = useState<UserPageContent | null>(null);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        getPageContent("support")
-            .then(setData)
-            .finally(() => setLoading(false));
-    }, []);
-
-    return (
-        <TopbarPageFrame title={loading ? "Support" : (data?.title || "Support")}>
-            <h1 className="text-xl font-semibold">{loading ? "Support" : (data?.title || "Support")}</h1>
-            {loading ? (
-                <p className="text-sm text-zinc-400">Loading...</p>
-            ) : data?.content ? (
-                <div className="space-y-3">
-                    {data.content.split(/\n\n+/).map((para, i) => (
-                        <p key={i} className="text-sm text-zinc-300 leading-relaxed">
-                            {para.split("\n").map((line, j) => (
-                                <span key={j}>{line}{j < para.split("\n").length - 1 && <br />}</span>
-                            ))}
-                        </p>
-                    ))}
-                </div>
-            ) : (
-                <p className="text-sm text-zinc-400">No content available.</p>
-            )}
-        </TopbarPageFrame>
-    );
+  return (
+    <ContentPage
+      slug="support"
+      fallbackTitle="Support"
+      caption="SUPPORT"
+      subtitle="We’re here to help with your account, deposits, withdrawals and trading."
+      footer={
+        <MenuList className="max-w-[720px]">
+          <MenuRow href="/dashboard/faq" icon={CircleHelp} label="Frequently asked questions" />
+          <MenuRow href="/dashboard/help" icon={BookOpen} label="Help guides" />
+        </MenuList>
+      }
+    />
+  );
 }

@@ -1,7 +1,12 @@
 "use client";
 
-import { ClosePosition } from "@/design/brokerview/ClosePosition";
+import { PositionList, TradeHeader } from "@/components/sfx/trade";
 
-export default function ClosePositionPage() {
-    return <ClosePosition />;
+export default function ClosedPositionsPage() {
+  return (
+    <div className="sfx-enter flex flex-col gap-[19px]">
+      <TradeHeader />
+      <PositionList status="closed" />
+    </div>
+  );
 }

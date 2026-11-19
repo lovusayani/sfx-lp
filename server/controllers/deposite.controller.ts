@@ -5,12 +5,6 @@ import { PaymentSetup } from "../models/PaymentSetup";
 import { storageService } from "../services/storage.service";
 import { asyncHandler } from "../utils/asyncHandler";
 
-const ON_CHAIN_ADDRESSES: Record<DepositeNetwork, string> = {
-  TRC20: "TRx9mDemoWalletAddress88621",
-  ERC20: "0xA91fDemoWalletAddress63D112Aa0",
-  BEP20: "0xBep20DemoWalletAddress9f11c6f",
-};
-
 const ALLOWED_TYPES: DepositeType[] = ["on_chain", "f2f", "buy_crypto"];
 const ALLOWED_NETWORKS: DepositeNetwork[] = ["TRC20", "ERC20", "BEP20"];
 
@@ -55,7 +49,11 @@ export const createDeposite = asyncHandler(async (req: Request, res: Response) =
     network = rawNetwork;
 
     const paymentSetup = await PaymentSetup.findOne({ key: "default" }).lean();
-    walletAddress = paymentSetup?.networks?.[network]?.walletAddress?.trim() || ON_CHAIN_ADDRESSES[network];
+    walletAddress = paymentSetup?.networks?.[network]?.walletAddress?.trim();
+    if (!walletAddress) {
+      res.status(400);
+      throw new Error(`${network} deposits are not available right now. Please choose another network.`);
+    }
   }
 
   const deposite = await Deposite.create({

@@ -1,82 +1,70 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { FileText } from "lucide-react";
 
+import { Skeleton } from "@/components/sfx/ActivityList";
 import { OpenFileButton, SecureImage } from "@/components/files/SecureFile";
+import { Chip, Display, TopBar } from "@/components/sfx/ui";
 import { useHydratedUser } from "@/hooks/useHydratedUser";
 
+const CHIP = {
+  approved: { label: "VERIFIED", tone: "gold" },
+  pending: { label: "IN REVIEW", tone: "neutral" },
+  rejected: { label: "ACTION NEEDED", tone: "danger" },
+} as const;
 
-const documentItems = [
-    { key: "companyProof", label: "Company Proof" },
-    { key: "panCard", label: "PAN Card" },
-    { key: "aadhaarCard", label: "Aadhaar Card" },
-    { key: "selfie", label: "Selfie" },
+const DOCS = [
+  { key: "companyProof", label: "Company proof" },
+  { key: "panCard", label: "PAN card" },
+  { key: "aadhaarCard", label: "Aadhaar card" },
+  { key: "selfie", label: "Selfie" },
 ] as const;
 
-export default function KycStatusPage() {
-    const { loading, user } = useHydratedUser();
+/** Submitted verification documents (owner-only private files). */
+export default function KycDocumentsPage() {
+  const { loading, user } = useHydratedUser();
+  const status = user?.kycStatus || "not_submitted";
 
-    if (loading) {
-        return (
-            <div className="flex min-h-[40vh] items-center justify-center">
-                <p className="text-zinc-400">Loading submitted documents...</p>
-            </div>
-        );
-    }
-
-    return (
-        <div className="space-y-4">
-            <section className="card">
-                <div className="mb-4 flex items-center gap-3">
-                    <Link
-                        href="/dashboard/profile"
-                        className="inline-grid h-9 w-9 place-items-center rounded-md border border-zinc-700 text-zinc-100"
-                        aria-label="Back to profile"
-                    >
-                        <ArrowLeft className="h-5 w-5" />
-                    </Link>
-                    <h1 className="text-xl font-semibold">KYC Status</h1>
-                </div>
-
-                <div className="mb-4">
-                    <span className="rounded-full bg-yellow-500/20 px-3 py-1 text-xs text-yellow-300">
-                        {user?.kycStatus || "pending"}
-                    </span>
-                </div>
-
-                <div className="space-y-3">
-                    {documentItems.map((item) => {
-                        const filePath = user?.kycDocuments?.[item.key];
-                        const isPdf = filePath?.toLowerCase().endsWith(".pdf");
-
-                        return (
-                            <div key={item.key} className="relative rounded-xl border border-zinc-800 p-3">
-                                <span className="absolute right-3 top-3 rounded-full bg-yellow-500/20 px-2.5 py-0.5 text-[11px] font-medium text-yellow-300">
-                                    Processing...
-                                </span>
-                                <p className="mb-2 pr-24 text-sm font-medium text-zinc-200">{item.label}</p>
-
-                                {!filePath && <p className="text-sm text-zinc-500">No file submitted</p>}
-
-                                {filePath && isPdf && (
-                                    <OpenFileButton fileRef={filePath} className="text-sm text-indigo-300 underline">
-                                        Open PDF
-                                    </OpenFileButton>
-                                )}
-
-                                {filePath && !isPdf && (
-                                    <SecureImage
-                                        fileRef={filePath}
-                                        alt={item.label}
-                                        className="max-h-52 min-h-24 w-full rounded-lg border border-zinc-800 object-contain"
-                                    />
-                                )}
-                            </div>
-                        );
-                    })}
-                </div>
-            </section>
+  return (
+    <div className="sfx-enter flex flex-col gap-[19px]">
+      <TopBar backHref="/dashboard/profile" caption="VERIFICATION" />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Display size="md" title="Your documents" />
+        {status !== "not_submitted" && <Chip tone={CHIP[status].tone}>{CHIP[status].label}</Chip>}
+      </div>
+      {status === "not_submitted" && (
+        <p className="text-[13px] text-sfx-muted">
+          You haven’t submitted documents yet.{" "}
+          <Link href="/kyc" className="font-semibold text-sfx-accent">
+            Start verification
+          </Link>
+        </p>
+      )}
+      {loading ? (
+        <Skeleton className="h-[320px]" />
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2">
+          {DOCS.map((d) => {
+            const ref = user?.kycDocuments?.[d.key];
+            const pdf = ref?.toLowerCase().endsWith(".pdf");
+            return (
+              <section key={d.key} className="sfx-tile flex flex-col gap-3 p-4" aria-label={d.label}>
+                <p className="text-[13px] font-medium text-sfx-text">{d.label}</p>
+                {!ref ? (
+                  <p className="text-[12px] text-sfx-muted">Not submitted</p>
+                ) : pdf ? (
+                  <OpenFileButton fileRef={ref} className="inline-flex items-center gap-2 text-[13px] font-semibold text-sfx-accent">
+                    <FileText size={16} /> Open PDF
+                  </OpenFileButton>
+                ) : (
+                  <SecureImage fileRef={ref} alt={d.label} className="h-44 w-full rounded-[14px] bg-sfx-surface-solid object-contain" />
+                )}
+              </section>
+            );
+          })}
         </div>
-    );
+      )}
+    </div>
+  );
 }

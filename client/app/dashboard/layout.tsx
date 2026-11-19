@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 import { Medallion } from "@/components/sfx/Brand";
 import { AppShell } from "@/components/sfx/AppShell";
@@ -10,12 +10,9 @@ import { getNextRoute } from "@/services/session.service";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const pathname = usePathname();
   const { loading, user } = useHydratedUser();
   // Local UI preview without a backend (development only).
   const isDevPreview = process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_DEV_PREVIEW === "true";
-  // The broker view still renders its own frame until it is redesigned.
-  const hasOwnShell = pathname.startsWith("/dashboard/brokerview");
 
   useEffect(() => {
     if (loading) return;
@@ -37,6 +34,5 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
   }
 
-  if (hasOwnShell) return <>{children}</>;
   return <AppShell>{children}</AppShell>;
 }

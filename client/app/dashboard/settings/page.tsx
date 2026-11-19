@@ -1,120 +1,107 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
+import { Segmented, Toggle } from "@/components/sfx/kit";
+import { Alert, Button, Display, Eyebrow, TopBar } from "@/components/sfx/ui";
+import { setFrontendTheme } from "@/components/theme/FrontendThemeController";
 import { useHydratedUser } from "@/hooks/useHydratedUser";
-import {
-    disablePushNotifications,
-    enablePushNotifications,
-} from "@/services/push-notifications.service";
+import { disablePushNotifications, enablePushNotifications } from "@/services/push-notifications.service";
 import { updateSettings } from "@/services/user.service";
 import { UserSettings } from "@/types";
-import { FRONTEND_THEME_EVENT, FRONTEND_THEME_KEY } from "@/components/theme/FrontendThemeController";
 
-const saveFrontendTheme = (theme: UserSettings["theme"]) => {
-    if (typeof window === "undefined") {
-        return;
-    }
+const DEFAULTS: UserSettings = { theme: "dark", fontSize: 16, notificationSound: true, alerts: true };
+const SIZES = [
+  { value: "14", label: "Small" },
+  { value: "16", label: "Default" },
+  { value: "18", label: "Large" },
+];
 
-    window.localStorage.setItem(FRONTEND_THEME_KEY, theme);
-    window.dispatchEvent(new Event(FRONTEND_THEME_EVENT));
-};
-
+/** Appearance and notification preferences (saved to the account). */
 export default function SettingsPage() {
-    const { user } = useHydratedUser();
-    const [form, setForm] = useState<UserSettings>({
-        theme: "dark",
-        fontSize: 16,
-        notificationSound: true,
-        alerts: true,
-    });
-    const [message, setMessage] = useState("");
-    const [saving, setSaving] = useState(false);
+  const { user, setUser } = useHydratedUser();
+  const [form, setForm] = useState<UserSettings>(DEFAULTS);
+  const [message, setMessage] = useState<{ tone: "success" | "danger"; text: string } | null>(null);
+  const [saving, setSaving] = useState(false);
 
-    useEffect(() => {
-        if (user?.settings) {
-            setForm(user.settings);
-            saveFrontendTheme(user.settings.theme);
-            document.documentElement.style.fontSize = `${user.settings.fontSize}px`;
-        }
-    }, [user]);
+  useEffect(() => {
+    if (user?.settings) setForm({ ...DEFAULTS, ...user.settings });
+  }, [user?.settings]);
 
-    const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        setSaving(true);
-        setMessage("");
-        try {
-            const updated = await updateSettings(form);
+  // Appearance previews immediately; everything is persisted on save.
+  const set = <K extends keyof UserSettings>(key: K, value: UserSettings[K]) => {
+    setMessage(null);
+    setForm((f) => ({ ...f, [key]: value }));
+    if (key === "theme") setFrontendTheme(value as UserSettings["theme"]);
+    if (key === "fontSize") document.documentElement.style.fontSize = `${value}px`;
+  };
 
-            if (updated.alerts) {
-                await enablePushNotifications().catch(() => undefined);
-            } else {
-                await disablePushNotifications().catch(() => undefined);
-            }
+  const save = async () => {
+    setSaving(true);
+    setMessage(null);
+    try {
+      const updated = await updateSettings(form);
+      if (updated.alerts) await enablePushNotifications().catch(() => undefined);
+      else await disablePushNotifications().catch(() => undefined);
+      if (user) setUser({ ...user, settings: updated });
+      setMessage({ tone: "success", text: "Settings saved." });
+    } catch (e) {
+      setMessage({ tone: "danger", text: e instanceof Error ? e.message : "Could not save settings." });
+    } finally {
+      setSaving(false);
+    }
+  };
 
-            saveFrontendTheme(updated.theme);
-            document.documentElement.style.fontSize = `${updated.fontSize}px`;
-            setMessage("Settings saved");
-        } catch (error) {
-            setMessage(error instanceof Error ? error.message : "Could not save settings");
-        } finally {
-            setSaving(false);
-        }
-    };
+  const sizeValue = String(form.fontSize <= 14 ? 14 : form.fontSize >= 18 ? 18 : 16);
 
-    return (
-        <form className="card space-y-4" onSubmit={onSubmit}>
-            <h1 className="text-xl font-semibold">Settings</h1>
+  return (
+    <div className="sfx-enter flex max-w-[720px] flex-col gap-[19px]">
+      <TopBar caption="SETTINGS" />
+      <Display size="md" title="Settings" />
 
-            <div className="space-y-2">
-                <label className="text-sm text-zinc-300">Theme</label>
-                <select
-                    className="input"
-                    value={form.theme}
-                    onChange={(event) => setForm((prev) => ({ ...prev, theme: event.target.value as UserSettings["theme"] }))}
-                >
-                    <option value="dark">Dark</option>
-                    <option value="light">Light</option>
-                    <option value="system">System</option>
-                </select>
-            </div>
+      <section className="sfx-card flex flex-col gap-5 p-[21px]" aria-label="Appearance">
+        <h2 className="text-[16px] font-semibold text-sfx-text">Appearance</h2>
+        <div className="flex flex-col gap-2">
+          <Eyebrow>Theme</Eyebrow>
+          <Segmented
+            label="Theme"
+            value={form.theme}
+            onChange={(v) => set("theme", v)}
+            options={[
+              { value: "dark", label: "Dark" },
+              { value: "light", label: "Light" },
+              { value: "system", label: "System" },
+            ]}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Eyebrow>Text size</Eyebrow>
+          <Segmented label="Text size" value={sizeValue} onChange={(v) => set("fontSize", Number(v))} options={SIZES} />
+        </div>
+      </section>
 
-            <div className="space-y-2">
-                <label className="text-sm text-zinc-300">Font Size ({form.fontSize}px)</label>
-                <input
-                    type="range"
-                    min={12}
-                    max={22}
-                    value={form.fontSize}
-                    onChange={(event) => setForm((prev) => ({ ...prev, fontSize: Number(event.target.value) }))}
-                    className="w-full"
-                />
-            </div>
+      <section className="sfx-card px-[21px] py-2" aria-label="Notifications">
+        <h2 className="pt-3 text-[16px] font-semibold text-sfx-text">Notifications</h2>
+        <div className="divide-y divide-sfx-line">
+          <Toggle
+            label="Push notifications"
+            description="Deposits, withdrawals and notices on this device"
+            checked={form.alerts}
+            onChange={(v) => set("alerts", v)}
+          />
+          <Toggle
+            label="Sound"
+            description="Play a sound for new notifications"
+            checked={form.notificationSound}
+            onChange={(v) => set("notificationSound", v)}
+          />
+        </div>
+      </section>
 
-            <label className="flex items-center justify-between rounded-xl border border-zinc-800 px-3 py-2">
-                <span>Notification Sound</span>
-                <input
-                    type="checkbox"
-                    checked={form.notificationSound}
-                    onChange={(event) =>
-                        setForm((prev) => ({ ...prev, notificationSound: event.target.checked }))
-                    }
-                />
-            </label>
-
-            <label className="flex items-center justify-between rounded-xl border border-zinc-800 px-3 py-2">
-                <span>Push Notifications</span>
-                <input
-                    type="checkbox"
-                    checked={form.alerts}
-                    onChange={(event) => setForm((prev) => ({ ...prev, alerts: event.target.checked }))}
-                />
-            </label>
-
-            {message && <p className="text-sm text-zinc-400">{message}</p>}
-            <button className="btn-primary" disabled={saving}>
-                {saving ? "Saving..." : "Save Settings"}
-            </button>
-        </form>
-    );
+      {message && <Alert tone={message.tone}>{message.text}</Alert>}
+      <Button onClick={save} loading={saving}>
+        Save settings
+      </Button>
+    </div>
+  );
 }

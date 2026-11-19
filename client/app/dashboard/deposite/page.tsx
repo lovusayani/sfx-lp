@@ -1,437 +1,291 @@
 "use client";
 
-import { FormEvent, useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { Aldrich } from "next/font/google";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { Check, Copy, Handshake, Link2, ShoppingCart } from "lucide-react";
 
-import { DashboardTopbar } from "@/mvc/frontend/views/dashboard/topbar.view";
-import { DepositeRecord, DepositeNetwork, PaymentSetupConfig } from "@/types";
-import { getDepositeHistory, getPaymentSetupConfig, submitDeposite } from "@/services/user.service";
+import { ActivityList, EmptyState, Skeleton } from "@/components/sfx/ActivityList";
+import { ActivityItem } from "@/components/sfx/activity";
+import { formatMoney } from "@/components/sfx/format";
+import { KycGate, OptionCard, TextArea } from "@/components/sfx/kit";
+import { UploadTile } from "@/components/sfx/UploadTile";
+import { Alert, Button, ButtonLink, Chip, Display, Eyebrow, Field, SectionTitle, TopBar } from "@/components/sfx/ui";
+import { useHydratedUser } from "@/hooks/useHydratedUser";
 import { getPublicAssetUrl } from "@/services/api";
+import { getDepositeHistory, getPaymentSetupConfig, submitDeposite } from "@/services/user.service";
+import { DepositeNetwork, DepositeRecord, PaymentSetupConfig } from "@/types";
 
-const aldrich = Aldrich({
-    weight: "400",
-    subsets: ["latin"],
-});
-
-const offerSlides = [
-    { title: "Bonus Offer", subtitle: "Get +5% extra on first deposite", accent: "from-cyan-400 to-blue-500" },
-    { title: "Fast Credit", subtitle: "Instant wallet credit in demo mode", accent: "from-fuchsia-400 to-violet-500" },
-    { title: "Zero Fee", subtitle: "No processing fee for this week", accent: "from-emerald-400 to-teal-500" },
+type Method = "on_chain" | "f2f";
+type Step = 1 | 2 | 3 | "done";
+const NETWORKS: Array<{ id: DepositeNetwork; label: string; body: string }> = [
+  { id: "TRC20", label: "TRC20", body: "USDT on Tron" },
+  { id: "ERC20", label: "ERC20", body: "USDT on Ethereum" },
+  { id: "BEP20", label: "BEP20", body: "USDT on BNB Smart Chain" },
 ];
 
-export default function DepositePage() {
-    const router = useRouter();
-    const [deviceWidth, setDeviceWidth] = useState<number | null>(null);
-    const [activeSlide, setActiveSlide] = useState(0);
-    const [formStep, setFormStep] = useState<1 | 2 | 3 | 4>(1);
-    const [amount, setAmount] = useState("10");
-    const [depositeType, setDepositeType] = useState<"on_chain" | "f2f" | "buy_crypto">("on_chain");
-    const [network, setNetwork] = useState("TRC20");
-    const [screenshotName, setScreenshotName] = useState("");
-    const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
-    const [remarks, setRemarks] = useState("");
-    const [submitting, setSubmitting] = useState(false);
-    const [depositeHistory, setDepositeHistory] = useState<DepositeRecord[]>([]);
-    const [historyLoading, setHistoryLoading] = useState(true);
-    const [formError, setFormError] = useState("");
-    const [paymentSetupConfig, setPaymentSetupConfig] = useState<PaymentSetupConfig | null>(null);
+const toActivity = (d: DepositeRecord): ActivityItem => ({
+  id: `dep-${d.id}`,
+  kind: "deposit",
+  title: d.status === "approved" ? "Deposit credited" : d.status === "rejected" ? "Deposit rejected" : "Deposit pending",
+  amount: d.amount,
+  status: d.status,
+  createdAt: d.createdAt,
+  detail: d.network || (d.depositeType === "f2f" ? "Face to face" : undefined),
+});
 
-    const sliderTrackStyle = useMemo(
-        () => ({ transform: `translateX(-${activeSlide * 100}%)` }),
-        [activeSlide]
-    );
+/** Deposit: amount & method → payment details → proof → done. */
+export default function DepositPage() {
+  const { user } = useHydratedUser();
+  const [config, setConfig] = useState<PaymentSetupConfig | null>(null);
+  const [history, setHistory] = useState<DepositeRecord[] | null>(null);
 
-    useLayoutEffect(() => {
-        const updateWidth = () => {
-            setDeviceWidth(window.innerWidth || document.documentElement.clientWidth || 360);
-        };
+  const [step, setStep] = useState<Step>(1);
+  const [amount, setAmount] = useState("");
+  const [method, setMethod] = useState<Method>("on_chain");
+  const [network, setNetwork] = useState<DepositeNetwork | null>(null);
+  const [proof, setProof] = useState<File | undefined>();
+  const [remarks, setRemarks] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
 
-        updateWidth();
-        window.addEventListener("resize", updateWidth);
-        return () => window.removeEventListener("resize", updateWidth);
-    }, []);
+  useEffect(() => {
+    getPaymentSetupConfig().then(setConfig, () => setConfig({ networks: {} as PaymentSetupConfig["networks"] }));
+    getDepositeHistory().then(setHistory, () => setHistory([]));
+  }, []);
 
-    useEffect(() => {
-        const id = window.setInterval(() => {
-            setActiveSlide((prev) => (prev + 1) % offerSlides.length);
-        }, 2800);
+  const isReady = (n: DepositeNetwork) => Boolean(config?.networks?.[n]?.walletAddress?.trim());
+  const readyNetworks = useMemo(() => NETWORKS.filter((n) => isReady(n.id)), [config]); // eslint-disable-line react-hooks/exhaustive-deps
+  const net = network ? config?.networks?.[network] : undefined;
+  const numericAmount = Number(amount);
 
-        return () => window.clearInterval(id);
-    }, []);
-
-    useEffect(() => {
-        const loadHistory = async () => {
-            try {
-                const records = await getDepositeHistory();
-                setDepositeHistory(records);
-            } catch (error) {
-                setDepositeHistory([]);
-                const message = error instanceof Error ? error.message : "Failed to load deposite history";
-                if (message.toLowerCase().includes("unauthorized")) {
-                    router.replace("/login");
-                    return;
-                }
-                setFormError(message);
-            } finally {
-                setHistoryLoading(false);
-            }
-        };
-
-        loadHistory();
-    }, []);
-
-    useEffect(() => {
-        const loadPaymentSetup = async () => {
-            try {
-                const config = await getPaymentSetupConfig();
-                setPaymentSetupConfig(config);
-            } catch (error) {
-                console.warn("Failed to load payment setup config", error);
-            }
-        };
-
-        loadPaymentSetup();
-    }, []);
-
-    const onSubmit = (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-    };
-
-    const networkWalletAddress: Record<DepositeNetwork, string> = {
-        TRC20: paymentSetupConfig?.networks?.TRC20?.walletAddress || "TRx9mDemoWalletAddress88621",
-        ERC20: paymentSetupConfig?.networks?.ERC20?.walletAddress || "0xA91fDemoWalletAddress63D112Aa0",
-        BEP20: paymentSetupConfig?.networks?.BEP20?.walletAddress || "0xBep20DemoWalletAddress9f11c6f",
-    };
-
-    const onAmountNext = () => {
-        if (!amount.trim()) {
-            return;
-        }
-        setFormStep(2);
-    };
-
-    const onTypeNext = () => {
-        if (depositeType === "buy_crypto") {
-            return;
-        }
-
-        if (depositeType === "on_chain") {
-            setFormStep(3);
-            return;
-        }
-
-        setFormStep(4);
-    };
-
-    const isNetworkConfigured = (selectedNetwork: DepositeNetwork) => {
-        const networkConfig = paymentSetupConfig?.networks?.[selectedNetwork];
-        return Boolean(networkConfig?.walletAddress?.trim() && networkConfig?.qrCodePath?.trim());
-    };
-
-    const onNetworkNext = () => {
-        if (!network || !isNetworkConfigured(network as DepositeNetwork)) {
-            return;
-        }
-        setFormStep(4);
-    };
-
-    const onFinalSubmit = async () => {
-        if (!screenshotFile) {
-            setFormError("Screenshot is required");
-            return;
-        }
-
-        setFormError("");
-        setSubmitting(true);
-
-        try {
-            const created = await submitDeposite({
-                amount: Number(amount),
-                depositeType,
-                network: depositeType === "on_chain" ? (network as "TRC20" | "ERC20" | "BEP20") : undefined,
-                remarks,
-                screenshot: screenshotFile,
-            });
-
-            setDepositeHistory((prev) => [created, ...prev].slice(0, 10));
-            setAmount("10000");
-            setDepositeType("on_chain");
-            setNetwork("TRC20");
-            setScreenshotName("");
-            setScreenshotFile(null);
-            setRemarks("");
-            setFormStep(1);
-        } catch (error) {
-            setFormError(error instanceof Error ? error.message : "Deposite submit failed");
-        } finally {
-            setSubmitting(false);
-        }
-    };
-
+  if (user && user.kycStatus !== "approved") {
     return (
-        <div className="min-h-screen w-full bg-[radial-gradient(circle_at_top,_#11286f_0%,_#02083f_32%,_#02062b_72%,_#01041f_100%)] pb-28">
-            {/* ** Topbar ** */}
-            <div className="pointer-events-none fixed inset-x-0 top-0 z-[120]">
-                <div
-                    className="pointer-events-auto mx-auto"
-                    style={deviceWidth ? { width: `${deviceWidth}px`, maxWidth: `${deviceWidth}px` } : undefined}
-                >
-                    <DashboardTopbar title="Deposite" showBack />
-                </div>
-            </div>
-
-            <div className="mx-auto w-[calc(100%-24px)] max-w-2xl pb-6 pt-28 sm:w-[calc(100%-40px)]">
-                {/* ** Offer Slider ** */}
-                <section className="mx-auto w-full overflow-hidden rounded-2xl border border-white/20 bg-black/20">
-                    <div className="flex transition-transform duration-500 ease-out" style={sliderTrackStyle}>
-                        {offerSlides.map((slide) => (
-                            <article key={slide.title} className="w-full shrink-0 p-4">
-                                <div className={`rounded-xl bg-gradient-to-r ${slide.accent} p-4 text-white`}>
-                                    <p className="text-sm uppercase tracking-wide opacity-90">Offer</p>
-                                    <h2 className={`${aldrich.className} mt-1 text-2xl`}>{slide.title}</h2>
-                                    <p className="mt-2 text-sm">{slide.subtitle}</p>
-                                </div>
-                            </article>
-                        ))}
-                    </div>
-
-                    <div className="mb-3 flex items-center justify-center gap-2">
-                        {offerSlides.map((_, index) => (
-                            <span
-                                key={`dot-${index}`}
-                                className={`h-1.5 rounded-full transition-all ${index === activeSlide ? "w-6 bg-white" : "w-2 bg-white/40"}`}
-                            />
-                        ))}
-                    </div>
-                </section>
-
-                {/* ** Deposite Form ** */}
-                <section className="mx-auto mt-5 w-full rounded-2xl border border-white/20 bg-black/25 p-4 text-white">
-                    <h3 className={`${aldrich.className} text-xl`}>Deposite Form</h3>
-
-                    <form className="mt-4 space-y-3" onSubmit={onSubmit}>
-                        <div className="rounded-lg border border-white/10 bg-[#0f1638] px-3 py-2 text-xs text-zinc-300">
-                            Step {formStep} of 4
-                        </div>
-
-                        {formStep >= 1 && (
-                            <div className="space-y-1.5">
-                                <label className="text-sm text-zinc-200">Deposite Amount (USDT)</label>
-                                <input
-                                    className="w-full rounded-lg border border-white/20 bg-[#10183f] px-3 py-2 text-sm text-white outline-none"
-                                    placeholder="10000"
-                                    value={amount}
-                                    onChange={(event) => setAmount(event.target.value)}
-                                    required
-                                />
-                            </div>
-                        )}
-
-                        {formStep === 1 && (
-                            <button
-                                type="button"
-                                onClick={onAmountNext}
-                                className="mt-2 w-full rounded-lg bg-[linear-gradient(120deg,#1d4ed8_0%,#7c3aed_100%)] px-4 py-2.5 text-sm font-semibold text-white"
-                            >
-                                Next
-                            </button>
-                        )}
-
-                        {formStep >= 2 && (
-                            <div className="space-y-2 rounded-xl border border-white/10 bg-[#0f1638] p-3">
-                                <p className="text-sm font-semibold text-zinc-100">Select Deposite Type</p>
-
-                                <button
-                                    type="button"
-                                    onClick={() => setDepositeType("on_chain")}
-                                    className={`w-full rounded-lg border px-3 py-2 text-left text-sm ${depositeType === "on_chain" ? "border-cyan-300 bg-cyan-400/20 text-white" : "border-white/20 text-zinc-200"}`}
-                                >
-                                    On Chain Deposit (Active)
-                                </button>
-
-                                <button
-                                    type="button"
-                                    onClick={() => setDepositeType("f2f")}
-                                    className={`w-full rounded-lg border px-3 py-2 text-left text-sm ${depositeType === "f2f" ? "border-cyan-300 bg-cyan-400/20 text-white" : "border-white/20 text-zinc-200"}`}
-                                >
-                                    F2F Deposite (Active)
-                                </button>
-
-                                <button
-                                    type="button"
-                                    disabled
-                                    className="w-full cursor-not-allowed rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-left text-sm text-zinc-500"
-                                >
-                                    Buy Crypto (Inactive)
-                                </button>
-                            </div>
-                        )}
-
-                        {formStep === 2 && (
-                            <button
-                                type="button"
-                                onClick={onTypeNext}
-                                className="mt-2 w-full rounded-lg bg-[linear-gradient(120deg,#1d4ed8_0%,#7c3aed_100%)] px-4 py-2.5 text-sm font-semibold text-white"
-                            >
-                                Next
-                            </button>
-                        )}
-
-                        {formStep >= 3 && depositeType === "on_chain" && (
-                            <div className="space-y-1.5">
-                                <label className="text-sm text-zinc-200">Deposite Network</label>
-                                <select
-                                    className="w-full rounded-lg border border-white/20 bg-[#10183f] px-3 py-2 text-sm text-white outline-none"
-                                    value={network}
-                                    onChange={(event) => setNetwork(event.target.value)}
-                                >
-                                    <option>TRC20</option>
-                                    <option>ERC20</option>
-                                    <option>BEP20</option>
-                                </select>
-                            </div>
-                        )}
-
-                        {formStep === 3 && depositeType === "on_chain" && (
-                            <>
-                                <button
-                                    type="button"
-                                    onClick={onNetworkNext}
-                                    disabled={!isNetworkConfigured(network as DepositeNetwork)}
-                                    className="mt-2 w-full rounded-lg bg-[linear-gradient(120deg,#1d4ed8_0%,#7c3aed_100%)] px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-                                >
-                                    Next
-                                </button>
-                                {!isNetworkConfigured(network as DepositeNetwork) && (
-                                    <p className="mt-2 text-sm text-amber-300">
-                                        Please select a network with both wallet address and QR code configured.
-                                    </p>
-                                )}
-                            </>
-                        )}
-
-                        {formStep >= 4 && (
-                            <>
-                                {depositeType === "on_chain" ? (
-                                    <div className="space-y-2 rounded-xl border border-white/10 bg-[#0f1638] p-3">
-                                        <p className="text-sm font-semibold text-zinc-100">Scan QR & Send Funds</p>
-                                        {paymentSetupConfig?.networks?.[network as DepositeNetwork]?.qrCodePath ? (
-                                            <img
-                                                src={getPublicAssetUrl(paymentSetupConfig.networks[network as DepositeNetwork].qrCodePath)}
-                                                alt={`${network} QR code`}
-                                                className="mx-auto h-40 w-40 rounded-md border border-white/20 bg-[#0c112f] object-contain"
-                                            />
-                                        ) : (
-                                            <div className="mx-auto flex h-40 w-40 items-center justify-center rounded-md border border-dashed border-white/20 bg-[#0c112f] text-sm text-zinc-500">
-                                                No QR code configured yet
-                                            </div>
-                                        )}
-                                        <p className="break-all rounded-lg border border-white/10 bg-black/25 px-3 py-2 text-xs text-zinc-200">
-                                            {networkWalletAddress[network as DepositeNetwork]}
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <div className="rounded-xl border border-white/10 bg-[#0f1638] p-3 text-sm text-zinc-200">
-                                        F2F Deposite selected. Share payment proof and remarks to complete demo submission.
-                                    </div>
-                                )}
-
-                                <div className="space-y-1.5">
-                                    <label className="text-sm text-zinc-200">Upload Screenshot</label>
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        className="w-full rounded-lg border border-white/20 bg-[#10183f] px-3 py-2 text-sm text-white outline-none"
-                                        onChange={(event) => {
-                                            const file = event.target.files?.[0] || null;
-                                            setScreenshotFile(file);
-                                            setScreenshotName(file?.name || "");
-                                        }}
-                                        required
-                                    />
-                                    {screenshotName && <p className="text-xs text-zinc-300">Selected: {screenshotName}</p>}
-                                </div>
-
-                                <div className="space-y-1.5">
-                                    <label className="text-sm text-zinc-200">Remarks</label>
-                                    <textarea
-                                        className="min-h-[90px] w-full rounded-lg border border-white/20 bg-[#10183f] px-3 py-2 text-sm text-white outline-none"
-                                        placeholder="Enter remarks"
-                                        value={remarks}
-                                        onChange={(event) => setRemarks(event.target.value)}
-                                        required
-                                    />
-                                </div>
-
-                                <button
-                                    type="button"
-                                    onClick={onFinalSubmit}
-                                    disabled={submitting}
-                                    className="mt-2 w-full rounded-lg bg-[linear-gradient(120deg,#1d4ed8_0%,#7c3aed_100%)] px-4 py-2.5 text-sm font-semibold text-white"
-                                >
-                                    {submitting ? "Submitting..." : "Submit Deposite"}
-                                </button>
-
-                                {formError && <p className="text-sm text-rose-300">{formError}</p>}
-                            </>
-                        )}
-                    </form>
-                </section>
-
-                {/* ** Deposite History ** */}
-                <section className="mx-auto mt-5 w-full rounded-2xl border border-white/20 bg-black/25 p-4 text-white">
-                    <h3 className={`${aldrich.className} text-xl`}>Deposite History</h3>
-
-                    <div className="mt-3 space-y-2">
-                        {historyLoading && (
-                            <article className="rounded-xl border border-white/10 bg-[#0f1638] px-3 py-3 text-sm text-zinc-300">
-                                Loading deposite history...
-                            </article>
-                        )}
-
-                        {!historyLoading && depositeHistory.length === 0 && (
-                            <article className="rounded-xl border border-white/10 bg-[#0f1638] px-3 py-3 text-sm text-zinc-300">
-                                No deposite history yet.
-                            </article>
-                        )}
-
-                        {depositeHistory.map((item, index) => (
-                            <article
-                                key={`${item.id}-${index}`}
-                                className="flex items-center justify-between rounded-xl border border-white/10 bg-[#0f1638] px-3 py-2.5"
-                            >
-                                <div>
-                                    <p className="text-sm font-semibold">{Number(item.amount).toLocaleString()} USDT</p>
-                                    <p className="text-xs text-zinc-400">{item.id}</p>
-                                </div>
-
-                                <div className="text-right">
-                                    <p
-                                        className={`text-xs font-semibold ${item.status === "approved"
-                                            ? "text-emerald-300"
-                                            : item.status === "rejected"
-                                                ? "text-rose-300"
-                                                : "text-amber-300"
-                                            }`}
-                                    >
-                                        {item.status === "approved"
-                                            ? "Success"
-                                            : item.status === "rejected"
-                                                ? "Rejected"
-                                                : "Pending"}
-                                    </p>
-                                    <p className="text-xs text-zinc-400">
-                                        {item.createdAt
-                                            ? new Date(item.createdAt).toISOString().slice(0, 10)
-                                            : "-"}
-                                    </p>
-                                </div>
-                            </article>
-                        ))}
-                    </div>
-                </section>
-            </div>
-        </div>
+      <div className="sfx-enter flex flex-col gap-[19px]">
+        <TopBar backHref="/dashboard/wallet" caption="DEPOSIT" />
+        <Display size="md" title="Add funds" />
+        <KycGate status={user.kycStatus} />
+      </div>
     );
+  }
+
+  const next = () => {
+    setError("");
+    if (step === 1) {
+      if (!Number.isFinite(numericAmount) || numericAmount <= 0) return setError("Enter the amount you want to deposit.");
+      if (method === "on_chain" && !network && readyNetworks[0]) setNetwork(readyNetworks[0].id);
+      setStep(2);
+    } else if (step === 2) {
+      if (method === "on_chain" && (!network || !isReady(network))) return setError("Choose an available network.");
+      setStep(3);
+    }
+  };
+
+  const submit = async () => {
+    if (!proof) return setError("Add a screenshot or PDF of your payment.");
+    setBusy(true);
+    setError("");
+    try {
+      const created = await submitDeposite({
+        amount: numericAmount,
+        depositeType: method,
+        network: method === "on_chain" ? network ?? undefined : undefined,
+        remarks: remarks.trim(),
+        screenshot: proof,
+      });
+      setHistory((prev) => [created, ...(prev || [])]);
+      setStep("done");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "We couldn't submit your deposit. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const restart = () => {
+    setStep(1);
+    setAmount("");
+    setProof(undefined);
+    setRemarks("");
+    setError("");
+  };
+
+  const copy = async () => {
+    if (!net?.walletAddress) return;
+    try {
+      await navigator.clipboard.writeText(net.walletAddress);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      // clipboard blocked: the address is selectable as a fallback
+    }
+  };
+
+  return (
+    <div className="sfx-enter flex flex-col gap-[19px]">
+      <TopBar
+        onBack={step === 2 ? () => setStep(1) : step === 3 ? () => setStep(2) : undefined}
+        backHref={step === 1 || step === "done" ? "/dashboard/wallet" : undefined}
+        caption={step === "done" ? "DEPOSIT" : `STEP ${step} OF 3`}
+      />
+
+      <div className="grid gap-[19px] lg:grid-cols-[1.15fr_1fr] lg:items-start">
+        <div className="flex flex-col gap-[19px]">
+          {step === 1 && (
+            <>
+              <Display size="md" title="Add funds" subtitle="Deposits are credited to your Main wallet after our team confirms the payment." />
+              <Field
+                label="Amount (USDT)"
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
+              <div className="flex flex-col gap-3" role="radiogroup" aria-label="Deposit method">
+                <Eyebrow>Method</Eyebrow>
+                <OptionCard
+                  icon={Link2}
+                  title="On-chain transfer"
+                  body="Send USDT from any crypto wallet"
+                  selected={method === "on_chain"}
+                  onClick={() => setMethod("on_chain")}
+                  disabled={config !== null && readyNetworks.length === 0}
+                />
+                <OptionCard
+                  icon={Handshake}
+                  title="Face to face"
+                  body="Pay in person, then upload the receipt"
+                  selected={method === "f2f"}
+                  onClick={() => setMethod("f2f")}
+                />
+                <OptionCard
+                  icon={ShoppingCart}
+                  title="Buy crypto"
+                  body="Card and bank purchases"
+                  selected={false}
+                  onClick={() => undefined}
+                  disabled
+                  badge={<Chip tone="neutral">SOON</Chip>}
+                />
+              </div>
+            </>
+          )}
+
+          {step === 2 && method === "on_chain" && (
+            <>
+              <Display size="md" title="Send the payment" subtitle={`Send exactly ${formatMoney(numericAmount)} USDT on the network you choose.`} />
+              <div className="flex flex-col gap-3" role="radiogroup" aria-label="Network">
+                {NETWORKS.map((n) => (
+                  <OptionCard
+                    key={n.id}
+                    title={n.label}
+                    body={isReady(n.id) ? n.body : "Not available right now"}
+                    selected={network === n.id}
+                    disabled={!isReady(n.id)}
+                    onClick={() => setNetwork(n.id)}
+                  />
+                ))}
+              </div>
+              {net?.walletAddress && (
+                <section className="sfx-card flex flex-col items-center gap-4 p-[21px]" aria-label="Deposit address">
+                  {net.qrCodePath ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={getPublicAssetUrl(net.qrCodePath)}
+                      alt={`${network} deposit QR code`}
+                      className="h-44 w-44 rounded-[18px] bg-white object-contain p-2"
+                    />
+                  ) : null}
+                  <div className="w-full">
+                    <Eyebrow className="mb-2">{network} address</Eyebrow>
+                    <div className="flex items-center gap-2 rounded-[14px] border border-sfx-line bg-sfx-field px-4 py-3">
+                      <code className="min-w-0 flex-1 break-all text-[13px] text-sfx-text">{net.walletAddress}</code>
+                      <button
+                        type="button"
+                        onClick={copy}
+                        aria-label="Copy address"
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sfx-accent hover:bg-sfx-gold-soft/50"
+                      >
+                        {copied ? <Check size={16} /> : <Copy size={16} />}
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-[12px] text-sfx-muted">Only send USDT on {network}. Funds sent on another network can be lost.</p>
+                </section>
+              )}
+            </>
+          )}
+
+          {step === 2 && method === "f2f" && (
+            <>
+              <Display size="md" title="Pay in person" subtitle={`Hand over ${formatMoney(numericAmount)} to your Swiss Liquidity representative and keep the receipt.`} />
+              <Alert tone="info">On the next step you’ll upload a photo of the receipt so we can credit your wallet.</Alert>
+            </>
+          )}
+
+          {step === 3 && (
+            <>
+              <Display size="md" title="Confirm your payment" subtitle="Upload proof of payment. We’ll credit your Main wallet once it’s verified." />
+              <dl className="sfx-tile grid grid-cols-2 gap-y-3 p-5 text-[13px]">
+                <dt className="text-sfx-muted">Amount</dt>
+                <dd className="text-right font-semibold tabular-nums text-sfx-text">{formatMoney(numericAmount)}</dd>
+                <dt className="text-sfx-muted">Method</dt>
+                <dd className="text-right text-sfx-text">{method === "on_chain" ? `On-chain · ${network}` : "Face to face"}</dd>
+              </dl>
+              <UploadTile title="Payment screenshot or receipt" file={proof} onFile={setProof} onError={setError} tall />
+              <TextArea
+                label="Note (optional)"
+                placeholder="Transaction hash, reference or anything that helps us match your payment"
+                value={remarks}
+                maxLength={500}
+                onChange={(e) => setRemarks(e.target.value)}
+              />
+            </>
+          )}
+
+          {step === "done" && (
+            <section className="sfx-card flex flex-col items-center gap-3 px-6 py-10 text-center">
+              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-sfx-gold-soft text-sfx-accent">
+                <Check size={26} />
+              </span>
+              <p className="text-[20px] font-semibold text-sfx-text">Deposit submitted</p>
+              <p className="max-w-xs text-[13px] text-sfx-muted">
+                We’re checking your payment of {formatMoney(numericAmount)}. You’ll see it in your Main wallet as soon as it’s confirmed.
+              </p>
+              <div className="mt-3 flex w-full max-w-xs flex-col gap-2">
+                <ButtonLink href="/dashboard/wallet">Back to wallet</ButtonLink>
+                <Button variant="ghost" onClick={restart}>
+                  Make another deposit
+                </Button>
+              </div>
+            </section>
+          )}
+
+          {error && <Alert>{error}</Alert>}
+          {step === 1 || step === 2 ? (
+            <Button onClick={next} disabled={config === null}>
+              Continue
+            </Button>
+          ) : step === 3 ? (
+            <Button onClick={submit} loading={busy}>
+              Submit deposit
+            </Button>
+          ) : null}
+        </div>
+
+        <section className="flex flex-col gap-4" aria-label="Deposit history">
+          <SectionTitle>Recent deposits</SectionTitle>
+          {history === null ? (
+            <Skeleton className="h-[160px]" />
+          ) : history.length === 0 ? (
+            <EmptyState title="No deposits yet" body="Your deposits and their status will appear here." />
+          ) : (
+            <ActivityList items={history.slice(0, 8).map(toActivity)} showDates />
+          )}
+        </section>
+      </div>
+    </div>
+  );
 }

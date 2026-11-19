@@ -1,392 +1,239 @@
 "use client";
 
-import { ChangeEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { Camera, CheckCircle2, Pencil } from "lucide-react";
+import {
+  Bell,
+  BookOpen,
+  Camera,
+  CircleHelp,
+  FileText,
+  Info,
+  LifeBuoy,
+  LogOut,
+  Pencil,
+  Settings,
+  ShieldCheck,
+  TrendingUp,
+} from "lucide-react";
 
-import { DashboardTopbar } from "@/mvc/frontend/views/dashboard/topbar.view";
+import { Skeleton } from "@/components/sfx/ActivityList";
+import { MenuList, MenuRow, Sheet } from "@/components/sfx/kit";
+import { Alert, Button, Chip, Field, TopBar } from "@/components/sfx/ui";
 import { useHydratedUser } from "@/hooks/useHydratedUser";
 import { getPublicAssetUrl } from "@/services/api";
+import { logoutUser } from "@/services/auth.service";
 import { updateProfile, uploadProfileAvatar } from "@/services/user.service";
+import { KycStatus } from "@/types";
 
+const KYC: Record<KycStatus, { label: string; tone: "gold" | "success" | "danger" | "neutral"; href: string }> = {
+  approved: { label: "VERIFIED", tone: "gold", href: "/kyc/status" },
+  pending: { label: "IN REVIEW", tone: "neutral", href: "/kyc/status" },
+  rejected: { label: "ACTION NEEDED", tone: "danger", href: "/kyc/status" },
+  not_submitted: { label: "UNVERIFIED", tone: "neutral", href: "/kyc" },
+};
+
+/** Profile: identity, personal details and the account menu (phones have no sidebar). */
 export default function ProfilePage() {
-    const router = useRouter();
-    const fileInputRef = useRef<HTMLInputElement | null>(null);
-    const { loading, user, setUser } = useHydratedUser();
-    const [deviceWidth, setDeviceWidth] = useState<number | null>(null);
-    const [editingProfile, setEditingProfile] = useState(false);
-    const [savingProfile, setSavingProfile] = useState(false);
-    const [uploadingAvatar, setUploadingAvatar] = useState(false);
-    const [statusMessage, setStatusMessage] = useState("");
-    const [profileForm, setProfileForm] = useState({ fullName: "", phone: "" });
+  const router = useRouter();
+  const { loading, user, setUser } = useHydratedUser();
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [message, setMessage] = useState<{ tone: "success" | "danger"; text: string } | null>(null);
 
-    useLayoutEffect(() => {
-        const updateWidth = () => {
-            setDeviceWidth(window.innerWidth || document.documentElement.clientWidth || 360);
-        };
-
-        updateWidth();
-        window.addEventListener("resize", updateWidth);
-        return () => window.removeEventListener("resize", updateWidth);
-    }, []);
-
-    useEffect(() => {
-        if (loading) {
-            return;
-        }
-
-        const hasName = Boolean(user?.fullName?.trim());
-        const hasKycStatus = Boolean(user?.kycStatus?.trim());
-        const kycStatus = user?.kycStatus?.trim().toLowerCase();
-
-        if (!hasName || !hasKycStatus) {
-            router.replace("/kyc");
-            return;
-        }
-
-        if (kycStatus === "not_submitted") {
-            const timer = window.setTimeout(() => {
-                router.replace("/kyc");
-            }, 3000);
-
-            return () => {
-                window.clearTimeout(timer);
-            };
-        }
-    }, [loading, router, user?.fullName, user?.kycStatus]);
-
-    useEffect(() => {
-        setProfileForm({
-            fullName: user?.fullName?.trim() || "",
-            phone: user?.phone?.trim() || "",
-        });
-    }, [user?.fullName, user?.phone]);
-
-    const emailToShow = user?.email?.trim() || "No email found";
-    const isPendingKyc = user?.kycStatus?.toLowerCase() === "pending";
-    const isApprovedKyc = user?.kycStatus?.toLowerCase() === "approved";
-    const topbarWidthStyle = deviceWidth ? { width: `${deviceWidth}px`, maxWidth: `${deviceWidth}px` } : undefined;
-    const glassCardStyle = useMemo(
-        () => ({
-            background: "linear-gradient(180deg, hsl(var(--card) / 0.72), hsl(var(--card) / 0.48))",
-            borderColor: "hsl(var(--border) / 0.88)",
-            boxShadow: "0 18px 44px hsl(var(--foreground) / 0.10)",
-            backdropFilter: "blur(18px)",
-            WebkitBackdropFilter: "blur(18px)",
-        }),
-        []
-    );
-    const glassTableStyle = useMemo(
-        () => ({
-            background: "hsl(var(--card) / 0.38)",
-            borderColor: "hsl(var(--border) / 0.78)",
-        }),
-        []
-    );
-    const mutedTextStyle = useMemo(() => ({ color: "hsl(var(--muted-foreground))" }), []);
-    const secondarySurfaceStyle = useMemo(
-        () => ({ background: "hsl(var(--secondary) / 0.76)", color: "hsl(var(--foreground))" }),
-        []
-    );
-    const profileHeroStyle = useMemo(
-        () => ({
-            background: "linear-gradient(180deg, hsl(var(--card) / 0.42), hsl(var(--card) / 0.2))",
-            boxShadow: "0 24px 50px hsl(var(--foreground) / 0.18), inset 0 1px 0 hsl(var(--foreground) / 0.08)",
-            backdropFilter: "blur(22px)",
-            WebkitBackdropFilter: "blur(22px)",
-            border: "1px solid hsl(var(--border) / 0.9)",
-        }),
-        []
-    );
-    const avatarSrc = user?.avatar ? getPublicAssetUrl(user.avatar) : "";
-    const avatarInitials = (user?.fullName || "LP")
-        .split(" ")
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((part) => part[0]?.toUpperCase())
-        .join("");
-
-    const onAvatarChange = async (event: ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) {
-            return;
-        }
-
-        setUploadingAvatar(true);
-        setStatusMessage("");
-
-        try {
-            const updated = await uploadProfileAvatar(file);
-            setUser(updated);
-            setStatusMessage("Profile photo updated");
-        } catch (error) {
-            setStatusMessage(error instanceof Error ? error.message : "Could not upload profile photo");
-        } finally {
-            setUploadingAvatar(false);
-            event.target.value = "";
-        }
-    };
-
-    const onSaveProfile = async () => {
-        setSavingProfile(true);
-        setStatusMessage("");
-
-        try {
-            const updated = await updateProfile({
-                fullName: profileForm.fullName,
-                phone: profileForm.phone,
-            });
-            setUser(updated);
-            setEditingProfile(false);
-            setStatusMessage("Profile updated");
-        } catch (error) {
-            setStatusMessage(error instanceof Error ? error.message : "Could not update profile");
-        } finally {
-            setSavingProfile(false);
-        }
-    };
-
-    if (loading) {
-        return (
-            <div className="flex min-h-[40vh] items-center justify-center">
-                <p className="text-zinc-400">Loading profile...</p>
-            </div>
-        );
-    }
-
+  if (loading || !user) {
     return (
-        <div className="min-h-screen w-full pb-28">
-            <div className="pointer-events-none fixed inset-x-0 top-0 z-[120]">
-                <div className="pointer-events-auto mx-auto" style={topbarWidthStyle}>
-                    <DashboardTopbar title="Profile" showBack />
-                </div>
-            </div>
-
-            <div className="space-y-0 px-3 pt-24 sm:px-4">
-                <section className="relative z-20 rounded-[28px] px-4 py-6 md:px-6" >
-                    <div className="flex flex-col items-center justify-center">
-                        <div className="relative flex h-[209px] w-[212px] items-center justify-center rounded-full" style={profileHeroStyle}>
-                            <button
-                                type="button"
-                                onClick={() => fileInputRef.current?.click()}
-                                className="absolute left-4 top-4 inline-grid h-10 w-10 place-items-center rounded-full border text-white"
-                                style={{
-                                    background: "hsl(var(--card) / 0.6)",
-                                    borderColor: "hsl(var(--border) / 0.92)",
-                                    boxShadow: "0 10px 24px hsl(var(--foreground) / 0.18)",
-                                }}
-                                aria-label="Upload profile photo"
-                                disabled={uploadingAvatar}
-                            >
-                                <Camera className="h-4 w-4" />
-                            </button>
-
-                            <input
-                                ref={fileInputRef}
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={onAvatarChange}
-                            />
-
-                            {avatarSrc ? (
-                                <img
-                                    src={avatarSrc}
-                                    alt="Profile avatar"
-                                    className="h-[176px] w-[176px] rounded-full object-cover"
-                                    style={{ boxShadow: "0 18px 30px hsl(var(--foreground) / 0.18)" }}
-                                />
-                            ) : (
-                                <div
-                                    className="grid h-[176px] w-[176px] place-items-center rounded-full text-4xl font-semibold"
-                                    style={{
-                                        background: "linear-gradient(180deg, hsl(var(--secondary) / 0.95), hsl(var(--accent) / 0.72))",
-                                        color: "hsl(var(--foreground))",
-                                        boxShadow: "0 18px 30px hsl(var(--foreground) / 0.18)",
-                                    }}
-                                >
-                                    {avatarInitials || "LP"}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </section>
-
-                <section className="relative z-10 -mt-[52px] rounded-[24px] border p-4 md:p-6" style={glassCardStyle}>
-                    <div className="flex items-start justify-between gap-3">
-                        <div>
-                            <h1 className="text-xl font-semibold tracking-tight" style={{ color: "hsl(var(--foreground))" }}>
-                                Profile
-                            </h1>
-                            <p className="mt-1 text-sm" style={mutedTextStyle}>
-                                Your personal details and account verification status.
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="mt-5 space-y-3">
-                        <div className="rounded-2xl border px-4 py-3" style={glassTableStyle}>
-                            <div className="flex items-center justify-between gap-3">
-                                <p className="text-xs font-medium uppercase tracking-[0.18em]" style={mutedTextStyle}>Name</p>
-                                <button
-                                    type="button"
-                                    onClick={() => setEditingProfile((value) => !value)}
-                                    className="inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium"
-                                    style={{ borderColor: "hsl(var(--border) / 0.88)", color: "hsl(var(--foreground))" }}
-                                >
-                                    <Pencil className="h-3.5 w-3.5" />
-                                    {editingProfile ? "Close" : "Edit"}
-                                </button>
-                            </div>
-                            {editingProfile ? (
-                                <input
-                                    className="input mt-3"
-                                    value={profileForm.fullName}
-                                    onChange={(event) => setProfileForm((prev) => ({ ...prev, fullName: event.target.value }))}
-                                    placeholder="Enter your name"
-                                />
-                            ) : (
-                                <p className="mt-2 text-base font-medium" style={{ color: "hsl(var(--foreground))" }}>{user?.fullName}</p>
-                            )}
-                        </div>
-
-                        <div className="rounded-2xl border px-4 py-3" style={glassTableStyle}>
-                            <div className="flex items-center justify-between gap-3">
-                                <p className="text-xs font-medium uppercase tracking-[0.18em]" style={mutedTextStyle}>Mobile Number</p>
-                                {!editingProfile && (
-                                    <p className="text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>
-                                        {user?.phone?.trim() || "Not added"}
-                                    </p>
-                                )}
-                            </div>
-                            {editingProfile && (
-                                <input
-                                    className="input mt-3"
-                                    value={profileForm.phone}
-                                    onChange={(event) => setProfileForm((prev) => ({ ...prev, phone: event.target.value }))}
-                                    placeholder="Enter mobile number"
-                                />
-                            )}
-                        </div>
-
-                        <div className="rounded-2xl border px-4 py-3" style={glassTableStyle}>
-                            <div className="flex items-center justify-between gap-3">
-                                <p className="text-xs font-medium uppercase tracking-[0.18em]" style={mutedTextStyle}>Email</p>
-                                <p className="text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>{emailToShow}</p>
-                            </div>
-                        </div>
-
-                        <div className="rounded-2xl border px-4 py-3" style={glassTableStyle}>
-                            <div className="flex items-center justify-between gap-3">
-                                <p className="text-xs font-medium uppercase tracking-[0.18em]" style={mutedTextStyle}>KYC Status</p>
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <span
-                                        className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold capitalize"
-                                        style={
-                                            isApprovedKyc
-                                                ? { background: "rgb(59 130 246 / 0.16)", color: "rgb(59 130 246)" }
-                                                : isPendingKyc
-                                                    ? { background: "rgb(234 179 8 / 0.18)", color: "rgb(202 138 4)" }
-                                                    : secondarySurfaceStyle
-                                        }
-                                    >
-                                        {isApprovedKyc && <CheckCircle2 className="h-3.5 w-3.5" />}
-                                        {user?.kycStatus?.replace(/_/g, " ")}
-                                    </span>
-                                </div>
-                            </div>
-                            {isPendingKyc && (
-                                <div className="mt-3">
-                                    <Link href="/dashboard/profile/kyc-status" className="btn-secondary px-3 py-1 text-xs">
-                                        Check Status
-                                    </Link>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="rounded-2xl border px-4 py-3" style={glassTableStyle}>
-                            <div className="flex items-center justify-between gap-3">
-                                <p className="text-xs font-medium uppercase tracking-[0.18em]" style={mutedTextStyle}>Account Status</p>
-                                <p className="text-sm font-semibold capitalize" style={{ color: "hsl(var(--foreground))" }}>{user?.status}</p>
-                            </div>
-                        </div>
-
-                        {editingProfile && (
-                            <div className="flex flex-wrap items-center gap-3 pt-1">
-                                <button type="button" className="btn-primary" onClick={onSaveProfile} disabled={savingProfile}>
-                                    {savingProfile ? "Saving..." : "Save Changes"}
-                                </button>
-                                <button
-                                    type="button"
-                                    className="btn-secondary"
-                                    onClick={() => {
-                                        setEditingProfile(false);
-                                        setProfileForm({
-                                            fullName: user?.fullName?.trim() || "",
-                                            phone: user?.phone?.trim() || "",
-                                        });
-                                    }}
-                                >
-                                    Cancel
-                                </button>
-                            </div>
-                        )}
-
-                        {statusMessage && (
-                            <p className="text-sm" style={mutedTextStyle}>{statusMessage}</p>
-                        )}
-                    </div>
-                </section>
-
-                <section className="mt-4 rounded-[24px] border p-4 md:p-6" style={glassCardStyle}>
-                    <div className="flex items-start justify-between gap-3">
-                        <div>
-                            <h2 className="text-lg font-semibold tracking-tight" style={{ color: "hsl(var(--foreground))" }}>
-                                History
-                            </h2>
-                            <p className="mt-1 text-sm" style={mutedTextStyle}>
-                                Recent profile-related activity will appear here.
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="mt-4 overflow-x-auto rounded-2xl border" style={glassTableStyle}>
-                        <table className="min-w-full text-sm" style={{ color: "hsl(var(--foreground))" }}>
-                            <thead style={{ background: "hsl(var(--secondary) / 0.82)", color: "hsl(var(--muted-foreground))" }}>
-                                <tr>
-                                    <th className="px-3 py-3 text-left font-medium">Date</th>
-                                    <th className="px-3 py-3 text-left font-medium">Action</th>
-                                    <th className="px-3 py-3 text-left font-medium">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr style={{ borderTop: "1px solid hsl(var(--border) / 0.78)" }}>
-                                    <td className="px-3 py-3" style={mutedTextStyle}>--</td>
-                                    <td className="px-3 py-3">No records yet</td>
-                                    <td className="px-3 py-3" style={mutedTextStyle}>--</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </section>
-
-                <section className="mt-4 rounded-[24px] border p-4 md:p-6" style={glassCardStyle}>
-                    <div className="flex items-center justify-between gap-4">
-                        <div>
-                            <h2 className="text-lg font-semibold tracking-tight" style={{ color: "hsl(var(--foreground))" }}>
-                                Reports
-                            </h2>
-                            <p className="mt-1 text-sm" style={mutedTextStyle}>
-                                Download account statements and profile-related reports.
-                            </p>
-                        </div>
-                        <Link href="/dashboard/profile/reports" className="btn-secondary">
-                            Download Report
-                        </Link>
-                    </div>
-                </section>
-            </div>
-        </div>
+      <div className="flex flex-col gap-[19px]">
+        <TopBar backHref="/dashboard" caption="PROFILE" />
+        <Skeleton className="h-[180px]" />
+        <Skeleton className="h-[320px]" />
+      </div>
     );
+  }
+
+  const kyc = KYC[user.kycStatus || "not_submitted"];
+  const initials =
+    (user.fullName || "")
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase())
+      .join("") || "SL";
+
+  const onAvatar = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return setMessage({ tone: "danger", text: "Choose a JPG, PNG or WEBP image." });
+    setUploading(true);
+    setMessage(null);
+    try {
+      setUser(await uploadProfileAvatar(file));
+      setMessage({ tone: "success", text: "Profile photo updated." });
+    } catch (err) {
+      setMessage({ tone: "danger", text: err instanceof Error ? err.message : "Could not upload the photo." });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const signOut = async () => {
+    await logoutUser().catch(() => undefined);
+    router.replace("/login");
+  };
+
+  return (
+    <div className="sfx-enter flex flex-col gap-[19px]">
+      <TopBar backHref="/dashboard" caption="PROFILE" />
+
+      <div className="grid gap-[19px] lg:grid-cols-[1fr_1.1fr] lg:items-start">
+        <div className="flex flex-col gap-[19px]">
+          <section className="sfx-card flex flex-col items-center gap-3 px-6 pb-7 pt-8 text-center" aria-label="Your profile">
+            <div className="relative">
+              {user.avatar ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={getPublicAssetUrl(user.avatar)}
+                  alt=""
+                  className="h-24 w-24 rounded-full border border-sfx-border-strong object-cover"
+                />
+              ) : (
+                <div className="flex h-24 w-24 items-center justify-center rounded-full border border-sfx-border-strong bg-sfx-gold-soft text-[30px] font-semibold text-sfx-accent">
+                  {initials}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                disabled={uploading}
+                aria-label="Change profile photo"
+                className="absolute -bottom-1 -right-1 flex h-9 w-9 items-center justify-center rounded-full border border-sfx-border-strong bg-sfx-gold text-sfx-on-gold disabled:opacity-60"
+              >
+                <Camera size={16} />
+              </button>
+              <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={onAvatar} />
+            </div>
+            <div className="mt-1">
+              <h1 className="text-[22px] font-bold text-sfx-text">{user.fullName || "Your name"}</h1>
+              <p className="text-[13px] text-sfx-muted">{user.email}</p>
+            </div>
+            <Chip tone={kyc.tone}>{kyc.label}</Chip>
+          </section>
+
+          {message && <Alert tone={message.tone}>{message.text}</Alert>}
+
+          <section className="sfx-card p-[21px]" aria-label="Personal details">
+            <div className="mb-2 flex items-center justify-between">
+              <h2 className="text-[16px] font-semibold text-sfx-text">Personal details</h2>
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                className="inline-flex items-center gap-1.5 rounded-[30px] bg-sfx-gold-soft px-3 py-1.5 text-[12px] font-semibold text-sfx-accent hover:brightness-110"
+              >
+                <Pencil size={13} /> Edit
+              </button>
+            </div>
+            <dl className="divide-y divide-sfx-line text-[14px]">
+              <Row label="Full name" value={user.fullName || "—"} />
+              <Row label="Mobile" value={user.phone?.trim() || "Not added"} />
+              <Row label="Email" value={user.email} />
+              <Row label="Account" value={user.status === "active" ? "Active" : "Suspended"} />
+            </dl>
+          </section>
+        </div>
+
+        <div className="flex flex-col gap-[19px]">
+          <MenuList>
+            <MenuRow href={kyc.href} icon={ShieldCheck} label="Identity verification" value={kyc.label.toLowerCase()} />
+            <MenuRow href="/dashboard/performance" icon={TrendingUp} label="Performance" />
+            <MenuRow href="/dashboard/profile/reports" icon={FileText} label="Reports & statements" />
+            <MenuRow href="/dashboard/notices" icon={Bell} label="Notices" />
+            <MenuRow href="/dashboard/settings" icon={Settings} label="Settings" />
+          </MenuList>
+          <MenuList>
+            <MenuRow href="/dashboard/support" icon={LifeBuoy} label="Support" />
+            <MenuRow href="/dashboard/help" icon={BookOpen} label="Help" />
+            <MenuRow href="/dashboard/faq" icon={CircleHelp} label="FAQ" />
+            <MenuRow href="/dashboard/about" icon={Info} label="About" />
+          </MenuList>
+          <MenuList>
+            <MenuRow onClick={signOut} icon={LogOut} label="Sign out" danger />
+          </MenuList>
+        </div>
+      </div>
+
+      <DetailsSheet
+        open={editing}
+        onClose={() => setEditing(false)}
+        initial={{ fullName: user.fullName || "", phone: user.phone || "" }}
+        onSaved={(u) => {
+          setUser(u);
+          setEditing(false);
+          setMessage({ tone: "success", text: "Your details were updated." });
+        }}
+      />
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-3">
+      <dt className="text-sfx-muted">{label}</dt>
+      <dd className="min-w-0 truncate text-right text-sfx-text">{value}</dd>
+    </div>
+  );
+}
+
+function DetailsSheet({
+  open,
+  onClose,
+  initial,
+  onSaved,
+}: {
+  open: boolean;
+  onClose: () => void;
+  initial: { fullName: string; phone: string };
+  onSaved: (user: Awaited<ReturnType<typeof updateProfile>>) => void;
+}) {
+  const [fullName, setFullName] = useState(initial.fullName);
+  const [phone, setPhone] = useState(initial.phone);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setFullName(initial.fullName);
+      setPhone(initial.phone);
+      setError("");
+    }
+  }, [open, initial.fullName, initial.phone]);
+
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
+    if (fullName.trim().length < 2) return setError("Enter your full name.");
+    setBusy(true);
+    setError("");
+    try {
+      onSaved(await updateProfile({ fullName: fullName.trim(), phone: phone.trim() }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save your details.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Sheet open={open} onClose={onClose} title="Edit details">
+      <form onSubmit={save} className="flex flex-col gap-5">
+        <Field label="Full name" value={fullName} onChange={(e) => setFullName(e.target.value)} autoComplete="name" />
+        <Field label="Mobile number" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" placeholder="+41 …" />
+        {error && <Alert>{error}</Alert>}
+        <Button type="submit" loading={busy}>
+          Save changes
+        </Button>
+      </form>
+    </Sheet>
+  );
 }
