@@ -11,12 +11,25 @@ State as of 2026-11-19, branch `claude/friendly-noether-u03gym`. Read this first
 - **Curreex DB backup**: taken 2026-11-19 15:18 UTC with `scripts/ops/backup-curreex-db.sh`
   (encrypted copy in `/root/curreex-backups/` on the droplet + downloaded by the owner).
   ⚠ The backup password was exposed in chat — owner should re-run the backup with a new password.
+- **Staging is LIVE (2026-11-19 16:31 UTC)**: bundle `202611191600-0a39249` on http://168.144.73.76:8080
+  (`/welcome`, `/admin/login` → 200; `/api/health` → ok). All 4 units active, 0 restarts.
+  Curreex HTTP status unchanged (301 before/after). RAM used ~590/961 MB, swap ~200 MB;
+  sfx-api ~75 MB, sfx-web ~55 MB. Admin login `admin@swissliquidity.com`; password only in the server
+  `.env` (`ADMIN_PASSWORD=`, readable by root/swissliq) and in a private file on the owner's PC.
 
 ## Deployment design (same droplet as Curreex, Curreex untouched)
 - Droplet `curreex-prod` (DigitalOcean, blr1, 1 vCPU / 1 GB / 25 GB, Ubuntu 24.04, IP 168.144.73.76),
   swap 2 GB already present, Nginx with `sites-enabled/curreex.com.conf`. No DO firewall, no DO backups.
-- **MongoDB is hosted (Atlas)**, not on the droplet. Swiss Liquidity uses the same cluster with its own
-  database `sfxlp_staging` and its own user `sfxlp_app` (role `readWrite@sfxlp_staging` only).
+- **MongoDB is hosted (Atlas)**, not on the droplet, and **separate from Curreex**: Atlas account
+  tradeauto474 → org "Swiss@2026" → "Project 0" → free **M0 cluster `sfxlp`** (AWS Mumbai,
+  host `sfxlp.xn0ylew.mongodb.net`). DB `sfxlp_staging`, user `sfxlp_app` (role `readWrite@sfxlp_staging`
+  only). Network Access: 168.144.73.76/32 only. (Curreex's cluster `lmax1.kg4yh0f` lives in a different
+  Atlas account and is not used.) M0 limits: 512 MB storage, shared CPU — upgrade before real users.
+- Setup takes `SFX_MONGO_HOST=<host>` to point at a cluster other than Curreex's.
+- Setup also ran `ufw allow 8080/tcp` (ufw is active on the droplet); remove when the test port goes away.
+- Local publishing from Windows: push as GitHub account `lovusayani` (the default gh account
+  `srsinfoacademy` has no write access). Bundles built on Windows ship Windows `node_modules`; the app
+  has no native deps today, but re-check before adding any (bcrypt, sharp…).
 - GitHub Actions is **locked (account billing)** → bundles are built locally with
   `scripts/ops/publish-bundle.sh staging`, which force-updates the artifact-only branch `deploy-staging`.
 - Server: user `swissliq`, private Node 22 in `/home/swissliq/.node`, app in `/home/swissliq/app`
@@ -27,17 +40,13 @@ State as of 2026-11-19, branch `claude/friendly-noether-u03gym`. Read this first
 - One-time setup: `scripts/ops/setup-swissliq.sh` (run as root; idempotent; never touches Curreex).
 
 ## Next steps (in order)
-1. Create Atlas DB user `sfxlp_app` with `readWrite` on `sfxlp_staging` only
-   (Atlas CLI: `atlas dbusers create readWrite@sfxlp_staging --username sfxlp_app --password <generated>`,
-   after `atlas auth login`; pick the project Curreex uses).
-2. Run setup on the droplet as root:
-   `curl -fsSL https://raw.githubusercontent.com/lovusayani/sfx-lp/<commit>/scripts/ops/setup-swissliq.sh -o /root/setup-swissliq.sh && SFX_REF=<commit> bash /root/setup-swissliq.sh`
-3. Verify: `systemctl is-active sfx-api sfx-web sfx-deploy.timer`, `tail /home/swissliq/app/logs/deploy.log`,
-   open http://168.144.73.76:8080, confirm Curreex still answers (`curl -I -H 'Host: curreex.com' http://127.0.0.1/`).
-4. Phase 3: redesign wallet, deposit, withdraw, brokerview/trade, performance, reports, notices,
-   profile, settings, support, FAQ/about pages with `components/sfx/*`.
-5. Domain + HTTPS (owner to provide domain and DNS provider), Resend email (sign-up, reset, OTP, 2FA),
-   PWA manifest/service worker, admin redesign (later, owner to discuss).
+1. Phase 3: redesign wallet, deposit, withdraw, brokerview/trade, performance, reports, notices,
+   profile, settings, support, FAQ/about pages with `components/sfx/*`; publish with
+   `scripts/ops/publish-bundle.sh staging` (agent deploys within ~2 min; watch `logs/deploy.log`).
+2. Domain + HTTPS (owner to provide domain and DNS provider) → then close port 8080 / remove
+   `swissliq-test.conf`, set `COOKIE_SECURE=true` and `CLIENT_URL` in `shared/.env`.
+3. Resend email (sign-up, reset, OTP, 2FA).
+4. PWA manifest/service worker; admin redesign (later, owner to discuss).
 
 ## Rules agreed with the owner
 - Never modify, restart or deploy to Curreex; never touch its database.
