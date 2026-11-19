@@ -1,10 +1,23 @@
 import { exec } from "child_process";
+import crypto from "crypto";
 import { promisify } from "util";
 import path from "path";
 import { Request, Response } from "express";
 
 import { asyncHandler } from "../utils/asyncHandler";
+import { env } from "../config/env";
 import { sendTelegramMessage } from "../services/telegram.service";
+
+const isAuthorizedDeploy = (req: Request): boolean => {
+  const expected = env.deployWebhookSecret;
+  if (!expected) {
+    return false;
+  }
+  const provided = String(req.get("x-deploy-secret") || "");
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+};
 
 const execAsync = promisify(exec);
 
@@ -24,12 +37,17 @@ const formatDeployMessage = (status: string, branch: string, commit: string, tim
 };
 
 export const deployWebhook = asyncHandler(async (req: Request, res: Response) => {
+  // Disabled unless DEPLOY_WEBHOOK_SECRET is configured; caller must send it in x-deploy-secret.
+  if (!isAuthorizedDeploy(req)) {
+    return res.status(404).json({ message: "Not found" });
+  }
+
   const branch = String(req.body.branch || process.env.GIT_BRANCH || "unknown branch");
   const commit = String(req.body.commit || process.env.GIT_COMMIT || "unknown commit");
   const startedAt = new Date().toISOString();
 
   await sendTelegramMessage(
-    formatDeployMessage("🚀 Deploy Started for Curreex", branch, commit, startedAt)
+    formatDeployMessage("🚀 Deploy Started for SfX LP", branch, commit, startedAt)
   );
 
   const projectRoot = path.resolve(__dirname, "../../");
@@ -53,7 +71,7 @@ export const deployWebhook = asyncHandler(async (req: Request, res: Response) =>
     const errorMessage = error instanceof Error ? error.message : String(error);
 
     await sendTelegramMessage(
-      formatDeployMessage("❌ Deploy Failed for Curreex", branch, commit, failedAt, errorMessage)
+      formatDeployMessage("❌ Deploy Failed for SfX LP", branch, commit, failedAt, errorMessage)
     );
 
     return res.status(500).json({
@@ -74,7 +92,7 @@ export const deployWebhook = asyncHandler(async (req: Request, res: Response) =>
 
   const successAt = new Date().toISOString();
   await sendTelegramMessage(
-    formatDeployMessage("✅ Deploy Successful for Curreex", branch, commit, successAt)
+    formatDeployMessage("✅ Deploy Successful for SfX LP", branch, commit, successAt)
   );
 
   return res.json({ message: "Deploy finished" });

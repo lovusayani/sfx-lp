@@ -82,7 +82,7 @@ export const exportData = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = "LP Management Admin";
+  workbook.creator = "SfX LP Admin";
   workbook.created = new Date();
 
   for (const table of tables) {

@@ -1,145 +1,29 @@
-# LP Management Web Application
+# SfX LP
 
-LP Management is a full-stack application built with Next.js + TypeScript (frontend) and Node.js + Express + MongoDB (backend).
+LP account and funds management — an installable web app (PWA) for LPs plus an admin panel.
 
-## Tech Stack
+- **Web app** (`client/`): Next.js (App Router), React, TypeScript, Tailwind CSS
+- **API** (`server/`): Node.js, Express, TypeScript, MongoDB (Mongoose), JWT access + refresh tokens
 
-- Frontend: Next.js (App Router), TypeScript, TailwindCSS
-- Backend: Node.js, Express, TypeScript
-- Database: MongoDB with Mongoose
-- Auth: JWT (Access + Refresh token)
-- Storage: Local file upload service abstraction (ready for S3 swap)
+## Features
 
-## Folder Structure
+Authentication, onboarding, KYC, wallets (main / trade, swap), deposits, withdrawals,
+trades & broker view, charges, P&L reports, notices & push notifications, and admin management.
 
-```txt
-/server
-  /config
-  /controllers
-  /middlewares
-  /models
-  /routes
-  /services
-  /types
-  /utils
-  server.ts
-
-/client
-  /app
-  /components
-  /layouts
-  /hooks
-  /services
-  /types
-```
-
-## Features Implemented
-
-### Authentication + Security
-
-- Admin-only LP user creation
-- Password hashing with bcrypt
-- JWT access + refresh flow
-- Forced password reset on first login
-- Helmet enabled
-- CORS configured
-- Rate limiting on auth routes
-- Input validation via `express-validator`
-- File upload restrictions (type + size)
-
-### LP User Flow
-
-Splash routing logic:
-
-1. No session → `/login`
-2. `mustChangePassword = true` → `/reset-password`
-3. `onboardingCompleted = false` → `/onboarding`
-4. `kycSubmitted = false` → `/kyc`
-5. Else → `/dashboard`
-
-### Modules
-
-- Onboarding (4 placeholder slides with Next/Skip)
-- KYC submission (company proof, PAN, Aadhaar, selfie)
-- Dashboard with bottom navigation + responsive sidebar
-- Profile (info, KYC badge, history/report placeholders)
-- Deposit & Withdraw UI (disabled if KYC not approved)
-- Settings persisted in DB (theme, font size, sound, alerts)
-
-### Admin Capabilities
-
-- Create LP user
-- View all LP users
-- Approve/Reject KYC
-- Activate/Suspend users
-
-## Local Setup
-
-## 1) Backend
+## Local development
 
 ```bash
-cd server
-cp .env.example .env
-npm install
-npm run dev
+# API
+cd server && cp .env.example .env   # fill in a DEV MongoDB URI and secrets
+npm install && npm run dev            # http://localhost:5000/api/health
+
+# Web app
+cd client && cp .env.example .env.local
+npm install && npm run dev            # http://localhost:3000
 ```
 
-Backend runs on `http://localhost:5000` by default.
+## Environments
 
-Optional bootstrap admin (from `.env`):
-
-- `ADMIN_NAME`
-- `ADMIN_EMAIL`
-- `ADMIN_PASSWORD`
-
-## 2) Frontend
-
-```bash
-cd client
-cp .env.example .env.local
-npm install
-npm run dev
-```
-
-Frontend runs on `http://localhost:3000`.
-
-## API Base
-
-- Health: `GET /api/health`
-- Auth: `/api/auth/*`
-- Admin: `/api/admin/*`
-- User: `/api/user/*`
-
-## Core API Endpoints
-
-### Auth
-
-- `POST /api/auth/login`
-- `POST /api/auth/refresh`
-- `POST /api/auth/logout`
-- `GET /api/auth/me`
-- `POST /api/auth/change-password`
-
-### Admin (admin role required)
-
-- `POST /api/admin/users`
-- `GET /api/admin/users`
-- `PATCH /api/admin/users/:id/kyc-status`
-- `PATCH /api/admin/users/:id/status`
-
-### User (authenticated)
-
-- `POST /api/user/onboarding/complete`
-- `POST /api/user/kyc`
-- `GET /api/user/profile`
-- `GET /api/user/settings`
-- `PUT /api/user/settings`
-- `GET /api/user/transaction-access`
-
-## Notes
-
-- KYC files are stored in `/server/uploads` and served from `/uploads/*`.
-- Deposit/Withdraw are currently UI placeholders per scope.
-- Local storage abstraction is ready for future S3 implementation.
-
-<!-- deploy-webhook test: 2026-08-26T17:52:47Z -->
+Development, staging and production each use their **own** database, storage bucket,
+Firebase project and API credentials. Secrets are never committed — only `.env.example`
+templates live in the repo. See `docs/` for deployment notes.

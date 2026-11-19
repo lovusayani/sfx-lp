@@ -24,14 +24,24 @@ export const env = {
   adminEmail: process.env.ADMIN_EMAIL || "",
   adminPassword: process.env.ADMIN_PASSWORD || "",
   adminName: process.env.ADMIN_NAME || "System Admin",
+  appEnv: process.env.APP_ENV || process.env.NODE_ENV || "development",
+  // Extra allowed browser origins (comma separated), e.g. https://app.sfxlp.com
+  clientUrls: (process.env.CLIENT_URLS || "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean),
+  // Demo LP is seeded only outside production and only when explicitly configured.
   demoLpName: process.env.DEMO_LP_NAME || "Demo LP User",
-  demoLpEmail: process.env.DEMO_LP_EMAIL || "lp.demo@example.com",
-  demoLpPassword: process.env.DEMO_LP_PASSWORD || "Demo@12345",
+  demoLpEmail: process.env.DEMO_LP_EMAIL || "",
+  demoLpPassword: process.env.DEMO_LP_PASSWORD || "",
+  deployWebhookSecret: process.env.DEPLOY_WEBHOOK_SECRET || "",
   firebaseProjectId: process.env.FIREBASE_PROJECT_ID || "",
   firebaseClientEmail: process.env.FIREBASE_CLIENT_EMAIL || "",
   firebasePrivateKey: (process.env.FIREBASE_PRIVATE_KEY || "").replace(/\\n/g, "\n"),
-  suimfxApiBaseUrl: process.env.SUIMFX_API_BASE_URL || "https://api.suimfx.com/api/v1/trades",
-  suimfxApiKey: process.env.SUIMFX_API_KEY || "",
+  // Default trade API source. No production default: must be set per environment.
+  tradesApiName: process.env.TRADES_API_NAME || "Default trade source",
+  tradesApiBaseUrl: process.env.TRADES_API_BASE_URL || "",
+  tradesApiKey: process.env.TRADES_API_KEY || "",
 };
 
 export const validateEnv = (): void => {
@@ -40,5 +50,14 @@ export const validateEnv = (): void => {
 
   if (missing.length > 0) {
     throw new Error(`Missing environment variables: ${missing.join(", ")}`);
+  }
+
+  if (env.nodeEnv === "production") {
+    const weak = ["JWT_ACCESS_SECRET", "JWT_REFRESH_SECRET"].filter(
+      (key) => (process.env[key] || "").length < 32 || /replace_with/i.test(process.env[key] || "")
+    );
+    if (weak.length > 0) {
+      throw new Error(`Production requires strong secrets (32+ chars): ${weak.join(", ")}`);
+    }
   }
 };

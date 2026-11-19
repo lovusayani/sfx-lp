@@ -1,6 +1,6 @@
 # Server (Express + MongoDB)
 
-Backend API for LP Management.
+Backend API for SfX LP.
 
 ## Setup
 

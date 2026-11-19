@@ -1,5 +1,5 @@
 {
-  "name": "server",
+  "name": "sfx-lp-server",
   "version": "1.0.0",
   "main": "dist/server.js",
   "scripts": {
@@ -10,7 +10,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "LP Management API",
+  "description": "SfX LP API",
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.7",
@@ -23,7 +23,6 @@
     "firebase-admin": "^13.7.0",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
-    "lp-management-app": "file:..",
     "mongoose": "^8.13.2",
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.2"

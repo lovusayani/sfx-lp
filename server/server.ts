@@ -40,7 +40,7 @@ const ensureAdmin = async (): Promise<void> => {
 };
 
 const ensureDemoLp = async (): Promise<void> => {
-  if (!env.demoLpEmail || !env.demoLpPassword) {
+  if (env.nodeEnv === "production" || !env.demoLpEmail || !env.demoLpPassword) {
     return;
   }
 
@@ -64,11 +64,11 @@ const ensureDemoLp = async (): Promise<void> => {
 };
 
 const ensureDefaultApiSource = async (): Promise<void> => {
-  if (!env.suimfxApiKey) {
+  if (!env.tradesApiBaseUrl || !env.tradesApiKey) {
     return;
   }
 
-  const existing = await ApiSource.findOne({ baseUrl: env.suimfxApiBaseUrl });
+  const existing = await ApiSource.findOne({ baseUrl: env.tradesApiBaseUrl });
   if (existing) {
     return;
   }
@@ -76,14 +76,14 @@ const ensureDefaultApiSource = async (): Promise<void> => {
   const demoLp = env.demoLpEmail ? await User.findOne({ email: env.demoLpEmail.toLowerCase() }) : null;
 
   await ApiSource.create({
-    name: "Suimfx (default)",
-    baseUrl: env.suimfxApiBaseUrl,
-    apiKey: env.suimfxApiKey,
+    name: env.tradesApiName,
+    baseUrl: env.tradesApiBaseUrl,
+    apiKey: env.tradesApiKey,
     authHeader: "x-api-key",
     assignedUsers: demoLp ? [demoLp._id] : [],
   });
 
-  console.log("Default Suimfx API source created");
+  console.log("Default trade API source created");
 };
 
 const migrateChargeSettingIndexes = async (): Promise<void> => {
@@ -121,10 +121,12 @@ const bootstrap = async () => {
 
         const allowed =
           origin === env.clientUrl ||
-          /^http:\/\/localhost:\d+$/.test(origin) ||
-          /^http:\/\/127\.0\.0\.1:\d+$/.test(origin) ||
-          /^http:\/\/10\.0\.2\.2:\d+$/.test(origin) ||
-          /^http:\/\/192\.168\.\d+\.\d+:\d+$/.test(origin);
+          env.clientUrls.includes(origin) ||
+          (env.nodeEnv !== "production" &&
+            (/^http:\/\/localhost:\d+$/.test(origin) ||
+              /^http:\/\/127\.0\.0\.1:\d+$/.test(origin) ||
+              /^http:\/\/10\.0\.2\.2:\d+$/.test(origin) ||
+              /^http:\/\/192\.168\.\d+\.\d+:\d+$/.test(origin)));
 
         if (allowed) {
           return callback(null, true);
@@ -135,7 +137,8 @@ const bootstrap = async () => {
       credentials: true,
     })
   );
-  app.use(morgan("dev"));
+  app.set("trust proxy", 1);
+  app.use(morgan(env.nodeEnv === "production" ? "combined" : "dev"));
   app.use(express.json({ limit: "1mb" }));
   app.use(express.urlencoded({ extended: true }));
   app.use(cookieParser());
@@ -153,7 +156,7 @@ const bootstrap = async () => {
   app.use("/uploads", express.static(path.join(process.cwd(), env.uploadDir)));
 
   app.get("/api/health", (_req, res) => {
-    res.json({ status: "ok" });
+    res.json({ status: "ok", app: "sfx-lp", env: env.appEnv, uptime: Math.round(process.uptime()) });
   });
 
   app.use("/api", routes);

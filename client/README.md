@@ -1,6 +1,6 @@
 # Client (Next.js)
 
-LP Management frontend built with Next.js App Router + TypeScript + TailwindCSS.
+SfX LP frontend built with Next.js App Router + TypeScript + TailwindCSS.
 
 ## Setup
 
