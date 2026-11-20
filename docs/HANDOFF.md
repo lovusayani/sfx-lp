@@ -53,6 +53,12 @@ State as of 2026-11-20 (session closed), branch `claude/friendly-noether-u03gym`
 - Cloudflare API token (zone-scoped: DNS, SSL and Certificates, Zone Settings) is in the owner's
   `C:/Users/sprsr/.sfxlp/cloudflare.token.txt`; delete it in Cloudflare when no longer needed.
 
+- **Email domain verified in Resend (2026-11-20)**: `swissconnector.com` (region ap-northeast-1);
+  Cloudflare DNS-only records `resend._domainkey` TXT, `send` MX + TXT, `rsend` CNAME, `_dmarc` TXT
+  (`p=none`). Server `EMAIL_FROM=no-reply@swissconnector.com` → mail reaches any address now.
+- Password rule (client + API): 6+ characters with a letter and a number; special character optional.
+  Mobile number optional at sign-up.
+
 ## Live on staging now
 - Release `202611191815-33d0586` (admin rebuild + onboarding design fix + Resend email), deployed
   2026-11-19 18:29 UTC. `sfx-api`/`sfx-web` active, `/api/health` 200, Curreex 301 (unchanged).
@@ -89,7 +95,8 @@ State as of 2026-11-20 (session closed), branch `claude/friendly-noether-u03gym`
    components). Publish with `scripts/ops/publish-bundle.sh staging` (agent deploys within ~2 min).
    Windows bundles include `sharp-win32` (unused: no next/image) — harmless.
 2. Domain + HTTPS — done (see Domains).
-3. Verify a sending domain in Resend and set `EMAIL_FROM=Name <no-reply@domain>` in `shared/.env`.
+3. Email domain — done. Owner should delete the full-access Resend key (`resend-full.key.txt`) once
+   no more domain changes are needed; the server only uses the sending-only key.
 4. PWA manifest/service worker. Optional: support tickets + admin audit log (needs new API).
 
 ## Rules agreed with the owner
