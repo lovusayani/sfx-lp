@@ -1,6 +1,6 @@
 # Handoff — Swiss Liquidity (sfx-lp)
 
-State as of 2026-11-20 (session closed), branch `claude/friendly-noether-u03gym`. Read this first in a new session.
+State as of 2026-11-20 (project handed over), branch `claude/friendly-noether-u03gym`. Read this first in a new session.
 
 ## Done
 - **Phase 0–2**: repo isolated from Curreex/FXIncap/SuimFX; design system from Figma; screens
@@ -85,6 +85,9 @@ State as of 2026-11-20 (session closed), branch `claude/friendly-noether-u03gym`
 - Push: Firebase is **not configured yet** (no `FIREBASE_*` in server `.env`, no `NEXT_PUBLIC_FIREBASE_*` at build).
 
 ## Live on staging now
+- **Release `202611201602-1cf4069`** (tickets, activity log, authenticator, themes, logos, PWA, cleanup), live
+  2026-11-20 ~16:25 UTC. `sfx-api`/`sfx-web` active, 0 restarts, all routes 200; Curreex 301 / https 200 (unchanged).
+  Project marked complete by the owner; open items are the owner list below (Firebase, go-live, key cleanup).
 - Release `202611191815-33d0586` (admin rebuild + onboarding design fix + Resend email), deployed
   2026-11-19 18:29 UTC. `sfx-api`/`sfx-web` active, `/api/health` 200, Curreex 301 (unchanged).
 - Owner still to test end to end: sign-up code, forgot password link, sign-in code (only the Resend
