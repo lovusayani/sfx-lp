@@ -80,7 +80,7 @@ function ResetPasswordInner() {
         }
       />
 
-      <form onSubmit={onSubmit} className="flex flex-col gap-[19px]">
+      <form onSubmit={onSubmit} className="flex flex-col gap-3.5">
         {!token && (
           <Field
             label="Temporary password"

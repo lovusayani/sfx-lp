@@ -11,7 +11,7 @@ export const isStrongPassword = (value: string) => PASSWORD_RULES.every((r) => !
 
 export function PasswordChecklist({ value, className }: { value: string; className?: string }) {
   return (
-    <div className={cn("sfx-tile flex flex-col gap-3 p-[21px]", className)} aria-live="polite">
+    <div className={cn("sfx-tile flex flex-col gap-3 p-4", className)} aria-live="polite">
       <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-sfx-muted">Password checklist</p>
       <ul className="flex flex-wrap gap-x-5 gap-y-2">
         {PASSWORD_RULES.map((rule) => {

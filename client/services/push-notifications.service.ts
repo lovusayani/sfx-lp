@@ -58,6 +58,12 @@ const setStoredPushToken = (token: string) => {
   window.localStorage.setItem(PUSH_TOKEN_STORAGE_KEY, token);
 };
 
+/** One service worker serves both the installable app (offline page) and push messages. */
+export const appServiceWorkerUrl = (): string => {
+  const config = getFirebaseWebConfig();
+  return config ? buildServiceWorkerUrl() : FIREBASE_SW_PATH;
+};
+
 const buildServiceWorkerUrl = (): string => {
   const config = getFirebaseWebConfig();
   if (!config) {

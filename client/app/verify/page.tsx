@@ -17,6 +17,7 @@ function VerifyInner() {
   const params = useSearchParams();
   const email = params.get("email") || "";
   const purpose = params.get("purpose") || "login";
+  const isApp = purpose === "login" && params.get("method") === "totp";
 
   const [code, setCode] = useState("");
   const [remaining, setRemaining] = useState(CODE_TTL_SECONDS);
@@ -76,10 +77,22 @@ function VerifyInner() {
       <Chip className="self-start">ONE TIME CODE</Chip>
       <Display
         title="One final security check."
-        subtitle={email ? `Enter the six-digit code sent to ${email}.` : "Enter the six-digit code sent to your registered email."}
+        subtitle={
+          isApp
+            ? "Open your authenticator app and enter the six-digit code it shows for this account."
+            : email
+              ? `Enter the six-digit code sent to ${email}.`
+              : "Enter the six-digit code sent to your registered email."
+        }
       />
-      <form onSubmit={onSubmit} className="flex flex-col gap-[19px]">
+      <form onSubmit={onSubmit} className="flex flex-col gap-3.5">
         <OtpInput value={code} onChange={setCode} disabled={submitting} />
+        {isApp ? (
+          <p className="text-[13px] text-sfx-muted">
+            Lost your phone? Contact support to reset your sign-in method.
+          </p>
+        ) : (
+          <>
         <p className="text-[13px] text-sfx-muted">
           {remaining > 0 ? (
             <>
@@ -95,6 +108,8 @@ function VerifyInner() {
             Resend code
           </button>
         </p>
+          </>
+        )}
         {error && <Alert>{error}</Alert>}
         {notice && <Alert tone="info">{notice}</Alert>}
         <Button type="submit" loading={submitting} disabled={code.length !== 6} className="mt-2">

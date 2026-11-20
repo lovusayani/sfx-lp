@@ -29,13 +29,13 @@ export function ContentPage({
   }, [slug]);
 
   return (
-    <div className="sfx-enter flex flex-col gap-[19px]">
+    <div className="sfx-enter flex flex-col gap-3.5">
       <TopBar caption={caption} />
       <Display size="md" title={data?.title || fallbackTitle} subtitle={subtitle} />
       {data === undefined ? (
         <Skeleton className="h-[220px]" />
       ) : data?.content?.trim() ? (
-        <article className="sfx-card max-w-[720px] p-[21px] md:p-8">
+        <article className="sfx-card max-w-[720px] p-4 md:p-6">
           <RichText text={data.content} />
         </article>
       ) : (

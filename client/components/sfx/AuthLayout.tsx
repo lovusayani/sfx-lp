@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 
-import { BrandFooter, Medallion, Wordmark } from "./Brand";
+import { BrandFooter, Credit, Medallion, Wordmark } from "./Brand";
 import { cn } from "./cn";
 
 /**
@@ -45,18 +45,22 @@ export function AuthLayout({
             </>
           )}
         </div>
-        <BrandFooter className="relative" />
+        <div className="relative flex flex-col gap-1">
+          <BrandFooter />
+          <Credit className="text-left" />
+        </div>
       </aside>
 
       <main className="flex min-h-[100dvh] flex-1 justify-center">
         <div
           className={cn(
-            "sfx-enter flex w-full max-w-[460px] flex-col gap-[19px] px-8 pb-7 pt-[34px] md:pt-16 lg:justify-center lg:pt-10",
+            "sfx-enter flex w-full max-w-[460px] flex-col gap-3.5 px-5 pb-6 pt-6 md:pt-14 lg:justify-center lg:pt-10",
             className
           )}
         >
           {children}
           {footer && <BrandFooter className="mt-auto pt-2 lg:hidden" />}
+          <Credit className={cn("lg:hidden", footer ? "" : "mt-auto pt-2")} />
         </div>
       </main>
     </div>

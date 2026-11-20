@@ -52,7 +52,7 @@ export default function WithdrawPage() {
 
   if (user && user.kycStatus !== "approved") {
     return (
-      <div className="sfx-enter flex flex-col gap-[19px]">
+      <div className="sfx-enter flex flex-col gap-3.5">
         <TopBar backHref="/dashboard/wallet" caption="WITHDRAW" />
         <Display size="md" title="Withdraw funds" />
         <KycGate status={user.kycStatus} />
@@ -82,12 +82,12 @@ export default function WithdrawPage() {
   };
 
   return (
-    <div className="sfx-enter flex flex-col gap-[19px]">
+    <div className="sfx-enter flex flex-col gap-3.5">
       <TopBar backHref="/dashboard/wallet" caption="WITHDRAW" />
 
-      <div className="grid gap-[19px] lg:grid-cols-[1.15fr_1fr] lg:items-start">
-        <div className="flex flex-col gap-[19px]">
-          <section className="sfx-card flex flex-col gap-3 p-[21px]" aria-label="Available to withdraw">
+      <div className="grid gap-3.5 lg:grid-cols-[1.15fr_1fr] lg:items-start">
+        <div className="flex flex-col gap-3.5">
+          <section className="sfx-card flex flex-col gap-3 p-4" aria-label="Available to withdraw">
             <p className="text-[12px] font-medium tracking-[0.08em] text-sfx-muted">AVAILABLE TO WITHDRAW</p>
             {available === null ? (
               <Skeleton className="h-11 w-48" />
@@ -103,7 +103,7 @@ export default function WithdrawPage() {
           {wallet === undefined ? (
             <Skeleton className="h-[92px]" />
           ) : wallet ? (
-            <section className="sfx-tile flex items-center gap-3 p-5" aria-label="Payout wallet">
+            <section className="sfx-tile flex items-center gap-3 p-4" aria-label="Payout wallet">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sfx-gold-soft text-sfx-accent">
                 <Wallet size={18} />
               </span>
@@ -123,7 +123,7 @@ export default function WithdrawPage() {
               </button>
             </section>
           ) : (
-            <section className="sfx-card flex flex-col gap-3 p-[21px]">
+            <section className="sfx-card flex flex-col gap-3 p-4">
               <p className="text-[16px] font-semibold text-sfx-text">Add a payout wallet</p>
               <p className="text-[13px] text-sfx-muted">Tell us where to send your USDT. You only need to do this once.</p>
               <Button onClick={() => setEditing(true)}>Add wallet</Button>
@@ -168,7 +168,7 @@ export default function WithdrawPage() {
           ) : history.length === 0 ? (
             <EmptyState title="No withdrawals yet" body="Your requests and their status will appear here." />
           ) : (
-            <ul className="sfx-card divide-y divide-sfx-line px-[21px] py-2">
+            <ul className="sfx-card divide-y divide-sfx-line px-4 py-2">
               {history.map((w) => (
                 <li key={w.id} className="flex items-start gap-3 py-3.5">
                   <div className="min-w-0 flex-1">

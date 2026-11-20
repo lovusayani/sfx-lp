@@ -6,11 +6,33 @@ import { cn } from "./cn";
 import { useBranding } from "./useBranding";
 
 /**
- * Wordmark (Figma 2:3): short name in gold with a small muted "LP" superscript.
- * `full` shows the full product name instead, for roomy layouts (desktop panels).
+ * Uploaded logo (Admin → Settings → Logos). Both theme versions are rendered and CSS shows the one
+ * that matches <html class="dark|light">, so there is no flash when the theme changes.
+ * `compact` prefers the small/mobile logo. Returns null when no logo is uploaded.
+ */
+export function BrandLogo({ className, height = 32, compact }: { className?: string; height?: number; compact?: boolean }) {
+  const { appName, darkLogo, lightLogo, mobileLogo } = useBranding();
+  const onDark = (compact && mobileLogo) || darkLogo || lightLogo || mobileLogo;
+  const onLight = (compact && mobileLogo) || lightLogo || darkLogo || mobileLogo;
+  if (!onDark) return null;
+  const style = { height, width: "auto", maxWidth: "100%" } as const;
+  return (
+    <span className={cn("inline-flex items-center", className)} aria-label={appName} role="img">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={onDark} alt="" style={style} className="sfx-logo-on-dark object-contain" draggable={false} />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={onLight} alt="" style={style} className="sfx-logo-on-light object-contain" draggable={false} />
+    </span>
+  );
+}
+
+/**
+ * Wordmark (Figma 2:3): the uploaded logo when there is one; otherwise the short name in gold
+ * with a small muted "LP". `full` shows the full product name instead, for roomy layouts.
  */
 export function Wordmark({ className, size = "md", full }: { className?: string; size?: "md" | "lg"; full?: boolean }) {
-  const { appName, shortName } = useBranding();
+  const { appName, shortName, darkLogo, lightLogo } = useBranding();
+  if (darkLogo || lightLogo) return <BrandLogo className={className} height={size === "lg" ? 44 : 32} />;
   return (
     <span className={cn("inline-flex items-start gap-2 leading-none", className)} aria-label={appName}>
       <span className={cn("font-bold tracking-tight text-sfx-accent", size === "lg" ? "text-[26px]" : "text-[21px]")}>
@@ -18,6 +40,23 @@ export function Wordmark({ className, size = "md", full }: { className?: string;
       </span>
       <span className="text-[11px] font-semibold text-sfx-muted">LP</span>
     </span>
+  );
+}
+
+/** Developer credit shown as a quiet watermark at the bottom of the app and admin. */
+export function Credit({ className }: { className?: string }) {
+  return (
+    <p className={cn("select-none text-center text-[10px] tracking-wide text-sfx-muted/60", className)}>
+      Developed by{" "}
+      <a
+        href="https://srstechacademy.com"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="font-semibold text-sfx-muted/80 transition hover:text-sfx-accent"
+      >
+        SPRS Infotech
+      </a>
+    </p>
   );
 }
 

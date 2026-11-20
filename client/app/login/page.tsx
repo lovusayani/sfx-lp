@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { AuthLayout } from "@/components/sfx/AuthLayout";
-import { BrandName } from "@/components/sfx/Brand";
+import { Wordmark } from "@/components/sfx/Brand";
 import { Alert, Button, ButtonLink, Checkbox, Display, Field, TopBar } from "@/components/sfx/ui";
 import { useHydratedUser } from "@/hooks/useHydratedUser";
 import { CodeRequiredError, loginUser, verifyRoute } from "@/services/auth.service";
@@ -83,10 +83,10 @@ export default function LoginPage() {
     <AuthLayout>
       <TopBar backHref="/welcome" caption="WELCOME BACK" />
       <div className="h-3" />
-      <BrandName className="text-[20px] font-bold tracking-wide text-sfx-accent" />
+      <Wordmark size="lg" full className="self-start" />
       <Display title="Sign in to your account." subtitle="Your funds and account, right where you left them." />
 
-      <form onSubmit={onSubmit} className="mt-2 flex flex-col gap-[19px]" noValidate={false}>
+      <form onSubmit={onSubmit} className="mt-2 flex flex-col gap-3.5" noValidate={false}>
         <Field
           label="Email address"
           type="email"

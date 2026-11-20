@@ -60,7 +60,7 @@ export default function DepositPage() {
 
   if (user && user.kycStatus !== "approved") {
     return (
-      <div className="sfx-enter flex flex-col gap-[19px]">
+      <div className="sfx-enter flex flex-col gap-3.5">
         <TopBar backHref="/dashboard/wallet" caption="DEPOSIT" />
         <Display size="md" title="Add funds" />
         <KycGate status={user.kycStatus} />
@@ -121,15 +121,15 @@ export default function DepositPage() {
   };
 
   return (
-    <div className="sfx-enter flex flex-col gap-[19px]">
+    <div className="sfx-enter flex flex-col gap-3.5">
       <TopBar
         onBack={step === 2 ? () => setStep(1) : step === 3 ? () => setStep(2) : undefined}
         backHref={step === 1 || step === "done" ? "/dashboard/wallet" : undefined}
         caption={step === "done" ? "DEPOSIT" : `STEP ${step} OF 3`}
       />
 
-      <div className="grid gap-[19px] lg:grid-cols-[1.15fr_1fr] lg:items-start">
-        <div className="flex flex-col gap-[19px]">
+      <div className="grid gap-3.5 lg:grid-cols-[1.15fr_1fr] lg:items-start">
+        <div className="flex flex-col gap-3.5">
           {step === 1 && (
             <>
               <Display size="md" title="Add funds" subtitle="Deposits are credited to your Main wallet after our team confirms the payment." />
@@ -189,18 +189,18 @@ export default function DepositPage() {
                 ))}
               </div>
               {net?.walletAddress && (
-                <section className="sfx-card flex flex-col items-center gap-4 p-[21px]" aria-label="Deposit address">
+                <section className="sfx-card flex flex-col items-center gap-4 p-4" aria-label="Deposit address">
                   {net.qrCodePath ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={getPublicAssetUrl(net.qrCodePath)}
                       alt={`${network} deposit QR code`}
-                      className="h-44 w-44 rounded-[18px] bg-white object-contain p-2"
+                      className="h-44 w-44 rounded-[12px] bg-white object-contain p-2"
                     />
                   ) : null}
                   <div className="w-full">
                     <Eyebrow className="mb-2">{network} address</Eyebrow>
-                    <div className="flex items-center gap-2 rounded-[14px] border border-sfx-line bg-sfx-field px-4 py-3">
+                    <div className="flex items-center gap-2 rounded-[10px] border border-sfx-line bg-sfx-field px-4 py-3">
                       <code className="min-w-0 flex-1 break-all text-[13px] text-sfx-text">{net.walletAddress}</code>
                       <button
                         type="button"
@@ -228,7 +228,7 @@ export default function DepositPage() {
           {step === 3 && (
             <>
               <Display size="md" title="Confirm your payment" subtitle="Upload proof of payment. We’ll credit your Main wallet once it’s verified." />
-              <dl className="sfx-tile grid grid-cols-2 gap-y-3 p-5 text-[13px]">
+              <dl className="sfx-tile grid grid-cols-2 gap-y-3 p-4 text-[13px]">
                 <dt className="text-sfx-muted">Amount</dt>
                 <dd className="text-right font-semibold tabular-nums text-sfx-text">{formatMoney(numericAmount)}</dd>
                 <dt className="text-sfx-muted">Method</dt>
@@ -246,7 +246,7 @@ export default function DepositPage() {
           )}
 
           {step === "done" && (
-            <section className="sfx-card flex flex-col items-center gap-3 px-6 py-10 text-center">
+            <section className="sfx-card flex flex-col items-center gap-3 px-4 py-8 text-center">
               <span className="flex h-14 w-14 items-center justify-center rounded-full bg-sfx-gold-soft text-sfx-accent">
                 <Check size={26} />
               </span>

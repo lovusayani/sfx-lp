@@ -51,7 +51,7 @@ export default function ReportsPage() {
   };
 
   return (
-    <div className="sfx-enter flex flex-col gap-[19px]">
+    <div className="sfx-enter flex flex-col gap-3.5">
       <TopBar
         backHref="/dashboard/profile"
         right={
@@ -72,7 +72,7 @@ export default function ReportsPage() {
       ) : reports.length === 0 ? (
         <EmptyState title="No reports yet" body="When the desk shares a statement with you, it will appear here." />
       ) : (
-        <ul className="sfx-card divide-y divide-sfx-line px-[21px] py-1">
+        <ul className="sfx-card divide-y divide-sfx-line px-4 py-1">
           {reports.map((r) => (
             <li key={r.id}>
               <button

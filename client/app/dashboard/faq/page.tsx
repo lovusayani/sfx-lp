@@ -47,11 +47,11 @@ export default function FaqPage() {
   }, [items, query]);
 
   return (
-    <div className="sfx-enter flex flex-col gap-[19px]">
+    <div className="sfx-enter flex flex-col gap-3.5">
       <TopBar caption="FAQ" />
       <Display size="md" title={title} subtitle="Quick answers to the questions we hear most." />
       {items && items.length > 4 && (
-        <label className="flex h-[42px] max-w-[720px] items-center gap-2 rounded-[14px] border border-sfx-line bg-sfx-field px-4 focus-within:border-sfx-gold">
+        <label className="flex h-[42px] max-w-[720px] items-center gap-2 rounded-[10px] border border-sfx-line bg-sfx-field px-4 focus-within:border-sfx-gold">
           <Search size={15} className="text-sfx-muted" aria-hidden />
           <input
             value={query}
@@ -67,7 +67,7 @@ export default function FaqPage() {
       ) : shown.length === 0 ? (
         <EmptyState title={items.length ? "No matching questions" : "No questions yet"} body="Can’t find what you need? Contact support." />
       ) : (
-        <ul className="sfx-card max-w-[720px] divide-y divide-sfx-line px-[21px] py-1">
+        <ul className="sfx-card max-w-[720px] divide-y divide-sfx-line px-4 py-1">
           {shown.map(({ item, i }) => {
             const isOpen = open === i;
             return (

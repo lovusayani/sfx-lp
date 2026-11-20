@@ -37,10 +37,10 @@ export default function ForgotPasswordPage() {
       <Chip className="self-start">RECOVER ACCESS</Chip>
       <Display title="Forgot your password?" subtitle="Enter your registered email and we will send a secure reset link." />
 
-      <form onSubmit={onSubmit} className="flex flex-col gap-[19px]">
+      <form onSubmit={onSubmit} className="flex flex-col gap-3.5">
         <Field label="Email address" type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
 
-        <div className="sfx-tile flex flex-col gap-2 p-[21px]">
+        <div className="sfx-tile flex flex-col gap-2 p-4">
           <p className="text-[14px] font-semibold text-sfx-accent">✦ Security reminder</p>
           <p className="text-[12px] leading-relaxed text-sfx-muted">
             We will never ask you to share your password or verification code.

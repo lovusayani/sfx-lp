@@ -11,7 +11,7 @@ const isMuted = (item: ActivityItem) => ["pending", "processing", "rejected", "c
 /** Activity card (Figma 2:416): icon, label, signed amount. */
 export function ActivityList({ items, showDates, className }: { items: ActivityItem[]; showDates?: boolean; className?: string }) {
   return (
-    <ul className={cn("sfx-card divide-y divide-sfx-line px-[21px] py-2", className)}>
+    <ul className={cn("sfx-card sfx-stagger divide-y divide-sfx-line px-4 py-2", className)}>
       {items.map((item) => {
         const Icon = ICONS[item.kind];
         const muted = isMuted(item);
@@ -43,7 +43,7 @@ export function ActivityList({ items, showDates, className }: { items: ActivityI
 
 export function EmptyState({ title, body, className }: { title: string; body?: string; className?: string }) {
   return (
-    <div className={cn("sfx-card flex flex-col items-center gap-2 px-6 py-10 text-center", className)}>
+    <div className={cn("sfx-card flex flex-col items-center gap-2 px-4 py-8 text-center", className)}>
       <p className="text-[15px] font-semibold text-sfx-text">{title}</p>
       {body && <p className="max-w-xs text-[13px] text-sfx-muted">{body}</p>}
     </div>
@@ -51,5 +51,5 @@ export function EmptyState({ title, body, className }: { title: string; body?: s
 }
 
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn("animate-pulse rounded-[22px] bg-sfx-surface-2", className)} aria-hidden />;
+  return <div className={cn("animate-pulse rounded-[14px] bg-sfx-surface-2", className)} aria-hidden />;
 }

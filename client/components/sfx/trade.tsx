@@ -55,7 +55,7 @@ export function TradeHeader() {
               href={t.href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "rounded-[30px] px-4 py-2 text-[12px] font-semibold transition",
+                "rounded-[12px] px-4 py-2 text-[12px] font-semibold transition",
                 active ? "bg-sfx-gold text-sfx-on-gold" : "bg-sfx-surface-2 text-sfx-muted hover:text-sfx-text"
               )}
             >
@@ -113,8 +113,8 @@ export function TradeOverview() {
   const net = overview ? overview.profit - overview.loss - overview.charges : 0;
 
   return (
-    <div className="grid gap-[19px] lg:grid-cols-[1.15fr_1fr] lg:items-start">
-      <section className="sfx-card flex flex-col gap-4 p-[21px]" aria-label="Trade wallet today">
+    <div className="grid gap-3.5 lg:grid-cols-[1.15fr_1fr] lg:items-start">
+      <section className="sfx-card flex flex-col gap-4 p-4" aria-label="Trade wallet today">
         <p className="text-[12px] font-medium tracking-[0.08em] text-sfx-muted">TRADE WALLET TODAY</p>
         {loading ? (
           <Skeleton className="h-11 w-56" />
@@ -175,7 +175,7 @@ function Tile({ label, value, sub, accent, href }: { label: string; value: strin
       {sub && <p className="text-[11px] text-sfx-muted tabular-nums">{sub}</p>}
     </>
   );
-  const cls = "sfx-tile flex flex-col gap-2 p-5";
+  const cls = "sfx-tile flex flex-col gap-2 p-4";
   return href ? (
     <Link href={href} className={cn(cls, "transition hover:border-sfx-border-strong")}>
       {body}
@@ -234,7 +234,7 @@ export function PositionList({ status }: { status: "open" | "closed" }) {
       </SectionTitle>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <label className="flex h-[42px] flex-1 items-center gap-2 rounded-[14px] border border-sfx-line bg-sfx-field px-4 focus-within:border-sfx-gold">
+        <label className="flex h-[42px] flex-1 items-center gap-2 rounded-[10px] border border-sfx-line bg-sfx-field px-4 focus-within:border-sfx-gold">
           <Search size={15} className="text-sfx-muted" aria-hidden />
           <input
             value={query}
@@ -265,7 +265,7 @@ export function PositionList({ status }: { status: "open" | "closed" }) {
       ) : (
         <>
           {/* Phones & tablets: cards */}
-          <ul className="sfx-card divide-y divide-sfx-line px-[21px] py-2 lg:hidden">
+          <ul className="sfx-card divide-y divide-sfx-line px-4 py-2 lg:hidden">
             {shown.map((t) => (
               <li key={t.trade_id} className="flex items-center gap-3 py-3.5">
                 <SideBadge side={t.position} />

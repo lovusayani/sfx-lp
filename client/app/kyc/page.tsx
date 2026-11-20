@@ -80,7 +80,7 @@ export default function KycPage() {
       <AuthLayout key="intro">
         <TopBar onBack={back} back={false} caption="IDENTITY VERIFICATION" />
         <Chip className="self-start">STEP 01 OF 03</Chip>
-        <div className="sfx-card flex min-h-[256px] flex-col items-center justify-center gap-4 px-[21px] text-center">
+        <div className="sfx-card flex min-h-[256px] flex-col items-center justify-center gap-4 px-4 text-center">
           <ShieldCheck size={84} strokeWidth={1.2} className="text-sfx-accent" />
           <p className="text-[13px] font-semibold tracking-[0.1em] text-sfx-accent">VERIFY YOUR IDENTITY</p>
           <p className="text-[14px] text-sfx-text">A secure step towards full account access.</p>
@@ -107,7 +107,7 @@ export default function KycPage() {
         <TopBar onBack={back} caption="KYC / STEP 02 OF 03" />
         <Chip className="self-start">IDENTITY DETAILS</Chip>
         <Display title="Proof of identity." subtitle="Upload clear, valid documents. Make sure all corners are visible and text is readable." />
-        <div className="grid gap-[19px] sm:grid-cols-2">
+        <div className="grid gap-3.5 sm:grid-cols-2">
           {DOCUMENTS.map((d, i) => (
             <UploadTile
               key={d.key}
@@ -148,7 +148,7 @@ export default function KycPage() {
         onFile={pick("selfie")}
         onError={setError}
       />
-      <div className="sfx-tile flex flex-col gap-3 p-[21px]">
+      <div className="sfx-tile flex flex-col gap-3 p-4">
         <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-sfx-muted">Submission summary</p>
         {summary.map(([label, ok]) => (
           <p key={label} className="flex items-center justify-between text-[14px] text-sfx-text">

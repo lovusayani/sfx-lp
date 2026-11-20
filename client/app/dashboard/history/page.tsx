@@ -27,13 +27,13 @@ export default function HistoryPage() {
   const shown = useMemo(() => (items || []).filter((i) => filter === "all" || i.kind === filter), [items, filter]);
 
   return (
-    <div className="sfx-enter flex flex-col gap-[19px]">
+    <div className="sfx-enter flex flex-col gap-3.5">
       <TopBar
         backHref="/dashboard"
         right={
           <Link
             href="/dashboard/performance"
-            className="inline-flex items-center gap-1.5 rounded-[30px] bg-sfx-gold-soft px-3 py-1.5 text-[12px] font-semibold text-sfx-accent hover:brightness-110"
+            className="inline-flex items-center gap-1.5 rounded-[12px] bg-sfx-gold-soft px-3 py-1.5 text-[12px] font-semibold text-sfx-accent hover:brightness-110"
           >
             <TrendingUp size={13} /> Trade results
           </Link>

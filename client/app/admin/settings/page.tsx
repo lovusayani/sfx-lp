@@ -1,17 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Download, ImageUp, Trash2 } from "lucide-react";
+import { Download, ImageUp, Monitor, Moon, Sun, Trash2 } from "lucide-react";
 
 import { Btn, Dialog, FilterChips, Loading, PageHeader, Panel } from "@/components/admin/ui";
 import { Alert, Checkbox, Field } from "@/components/sfx/ui";
-import { DEFAULT_BRANDING } from "@/components/sfx/useBranding";
+import { cn } from "@/components/sfx/cn";
+import { Toggle } from "@/components/sfx/kit";
+import { applyBrandingAssets, AppTheme, DEFAULT_BRANDING } from "@/components/sfx/useBranding";
 import { deleteAdminPaymentQr, getAdminPaymentSetup, PaymentSetupConfig, updateAdminPaymentSetup, uploadAdminPaymentQr } from "@/services/admin.service";
 import { getPublicAssetUrl } from "@/services/api";
-import { BrandingAssets, BrandingLogoVariant, getBrandingAssets, updateBrandingName, uploadAdminBrandingLogo } from "@/services/branding.service";
+import {
+  BrandingAssets,
+  BrandingLogoVariant,
+  getBrandingAssets,
+  updateAppTheme,
+  updateBrandingName,
+  uploadAdminBrandingLogo,
+} from "@/services/branding.service";
 import { DataTableInfo, exportDataTables, getDataTables, resetDataTables } from "@/services/dataManagement.service";
 
-type Section = "branding" | "payments" | "data";
+type Section = "branding" | "appearance" | "payments" | "data";
 type Msg = { tone: "success" | "danger"; text: string } | null;
 const NETWORKS = ["TRC20", "ERC20", "BEP20"] as const;
 const errText = (e: unknown, f: string) => (e instanceof Error ? e.message : f);
@@ -28,12 +37,14 @@ export default function AdminSettingsPage() {
         label="Settings section"
         options={[
           { value: "branding", label: "Branding" },
+          { value: "appearance", label: "Appearance" },
           { value: "payments", label: "Deposit wallets" },
           { value: "data", label: "Data" },
         ]}
       />
       <div className="mt-4">
         {section === "branding" && <BrandingSection />}
+        {section === "appearance" && <AppearanceSection />}
         {section === "payments" && <PaymentsSection />}
         {section === "data" && <DataSection />}
       </div>
@@ -44,9 +55,9 @@ export default function AdminSettingsPage() {
 /* ── Branding ─────────────────────────────────────────────────────── */
 
 const LOGOS: Array<{ variant: BrandingLogoVariant; key: keyof BrandingAssets; label: string; hint: string; bg: string }> = [
-  { variant: "dark", key: "darkLogoPath", label: "Logo on dark", hint: "Light-coloured logo for the dark theme", bg: "bg-[#0b0c0a]" },
-  { variant: "light", key: "lightLogoPath", label: "Logo on light", hint: "Dark-coloured logo for the light theme", bg: "bg-[#f4f1e8]" },
-  { variant: "mobile", key: "mobileLogoPath", label: "App icon", hint: "Square mark for small screens", bg: "bg-[#1a1b17]" },
+  { variant: "dark", key: "darkLogoPath", label: "Logo on dark", hint: "Light-coloured logo for the dark theme · about 540 × 148 px", bg: "bg-[#0b0c0a]" },
+  { variant: "light", key: "lightLogoPath", label: "Logo on light", hint: "Dark-coloured logo for the light theme · about 540 × 148 px", bg: "bg-[#f4f1e8]" },
+  { variant: "mobile", key: "mobileLogoPath", label: "Small logo", hint: "Used where space is tight (collapsed admin menu) · about 360 × 124 px", bg: "bg-[#1a1b17]" },
 ];
 
 function BrandingSection() {
@@ -85,8 +96,10 @@ function BrandingSection() {
     setBusy("name");
     setMsg(null);
     try {
-      setAssets(await updateBrandingName(appName.trim(), shortName.trim()));
+      const saved = await updateBrandingName(appName.trim(), shortName.trim());
+      setAssets(saved);
       clearCache();
+      applyBrandingAssets(saved);
       setMsg({ tone: "success", text: "Name saved. Clients see it on their next visit." });
     } catch (e) {
       setMsg({ tone: "danger", text: errText(e, "Couldn’t save the name.") });
@@ -97,13 +110,14 @@ function BrandingSection() {
 
   const upload = async (variant: BrandingLogoVariant, file?: File | null) => {
     if (!file) return;
-    if (!file.type.startsWith("image/")) return setMsg({ tone: "danger", text: "Choose an image file (PNG, SVG, JPG or WebP)." });
+    if (file.type !== "image/png") return setMsg({ tone: "danger", text: "Choose a PNG file (a transparent background works best)." });
     setBusy(variant);
     setMsg(null);
     try {
-      setAssets(await uploadAdminBrandingLogo(variant, file));
+      const saved = await uploadAdminBrandingLogo(variant, file);
+      setAssets(saved);
       clearCache();
-      window.dispatchEvent(new Event("branding-updated"));
+      applyBrandingAssets(saved);
       setMsg({ tone: "success", text: "Logo updated." });
     } catch (e) {
       setMsg({ tone: "danger", text: errText(e, "Upload failed.") });
@@ -132,7 +146,7 @@ function BrandingSection() {
           </Btn>
         </form>
       </Panel>
-      <Panel title="Logos" aside="PNG, SVG, JPG or WebP">
+      <Panel title="Logos" aside="PNG · shown in the app, sign-in screens and admin menu">
         <div className="grid gap-4 md:grid-cols-3">
           {LOGOS.map((l) => {
             const path = String(assets[l.key] || "");
@@ -154,7 +168,7 @@ function BrandingSection() {
                   <ImageUp size={15} /> {busy === l.variant ? "Uploading…" : path ? "Replace" : "Upload"}
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/png"
                     className="sr-only"
                     disabled={busy === l.variant}
                     onChange={(e) => {
@@ -167,6 +181,103 @@ function BrandingSection() {
             );
           })}
         </div>
+      </Panel>
+    </div>
+  );
+}
+
+/* ── Appearance: theme for every app user ────────────────────────── */
+
+const THEMES: Array<{ value: AppTheme; label: string; note: string; icon: typeof Sun }> = [
+  { value: "dark", label: "Dark", note: "Black and gold (default)", icon: Moon },
+  { value: "light", label: "Light", note: "Warm white and gold", icon: Sun },
+  { value: "system", label: "System", note: "Follows each phone or computer", icon: Monitor },
+];
+
+function AppearanceSection() {
+  const [theme, setTheme] = useState<AppTheme | null>(null);
+  const [allowUser, setAllowUser] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<Msg>(null);
+
+  useEffect(() => {
+    let alive = true;
+    getBrandingAssets().then(
+      (b) => alive && (setTheme(b.appTheme || "dark"), setAllowUser(Boolean(b.allowUserTheme))),
+      (e) => alive && (setTheme("dark"), setMsg({ tone: "danger", text: errText(e, "Couldn’t load the theme.") }))
+    );
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const save = async (next: AppTheme, allow: boolean) => {
+    setTheme(next);
+    setAllowUser(allow);
+    setBusy(true);
+    setMsg(null);
+    try {
+      applyBrandingAssets(await updateAppTheme(next, allow));
+      setMsg({ tone: "success", text: "Saved. Clients get this theme the next time they open the app." });
+    } catch (e) {
+      setMsg({ tone: "danger", text: errText(e, "Couldn’t save the theme.") });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!theme) return <Loading rows={2} />;
+
+  return (
+    <div className="flex flex-col gap-6">
+      {msg && <Alert tone={msg.tone}>{msg.text}</Alert>}
+      <Panel title="App theme" aside="For every client using the app">
+        <div role="radiogroup" aria-label="App theme" className="grid gap-3 sm:grid-cols-3">
+          {THEMES.map((t) => {
+            const Icon = t.icon;
+            const active = theme === t.value;
+            return (
+              <button
+                key={t.value}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                disabled={busy}
+                onClick={() => save(t.value, allowUser)}
+                className={cn(
+                  "flex items-center gap-3 rounded-[12px] border p-4 text-left transition disabled:opacity-60",
+                  active ? "border-sfx-border-strong bg-sfx-gold-soft" : "border-sfx-line bg-sfx-surface-2 hover:border-sfx-border"
+                )}
+              >
+                <span
+                  className={cn(
+                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
+                    active ? "bg-sfx-gold text-sfx-on-gold" : "bg-sfx-surface-solid text-sfx-accent"
+                  )}
+                >
+                  <Icon size={17} />
+                </span>
+                <span>
+                  <span className="block text-[14px] font-semibold text-sfx-text">{t.label}</span>
+                  <span className="block text-[12px] text-sfx-muted">{t.note}</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="mt-4 border-t border-sfx-line">
+          <Toggle
+            label="Let clients choose their own theme"
+            description="When on, clients can switch Dark / Light / System in their Settings. When off, everyone sees the theme above."
+            checked={allowUser}
+            onChange={(v) => save(theme, v)}
+          />
+        </div>
+      </Panel>
+      <Panel title="Admin panel theme">
+        <p className="text-[13px] text-sfx-muted">
+          The admin panel has its own theme, saved on this computer. Use the sun / moon / screen switch at the top of any admin page.
+        </p>
       </Panel>
     </div>
   );

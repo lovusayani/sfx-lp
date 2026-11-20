@@ -64,7 +64,7 @@ export default function KycStatusPage() {
       <Chip tone={c.tone} className="self-start">
         {c.chip}
       </Chip>
-      <div className="sfx-card flex min-h-[279px] flex-col items-center justify-center gap-4 px-[21px] text-center">
+      <div className="sfx-card flex min-h-[279px] flex-col items-center justify-center gap-4 px-4 text-center">
         <Icon size={72} strokeWidth={1.2} className={status === "rejected" ? "text-sfx-danger" : "text-sfx-accent"} />
         <p className="text-[20px] font-semibold text-sfx-text">{c.heading}</p>
         <p className="max-w-[320px] text-[13px] text-sfx-muted">{c.sub}</p>

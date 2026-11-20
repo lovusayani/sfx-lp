@@ -7,6 +7,8 @@ export interface IBranding extends Document {
   mobileLogoPath?: string;
   appName?: string;
   shortName?: string;
+  appTheme?: "dark" | "light" | "system";
+  allowUserTheme?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -21,6 +23,10 @@ const brandingSchema = new Schema<IBranding>(
     mobileLogoPath: { type: String, trim: true },
     appName: { type: String, trim: true, maxlength: 60 },
     shortName: { type: String, trim: true, maxlength: 12 },
+    /** Theme every client app user gets (Admin → Settings → Appearance). */
+    appTheme: { type: String, enum: ["dark", "light", "system"], default: "dark" },
+    /** When true, users may override the theme in their own Settings. */
+    allowUserTheme: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

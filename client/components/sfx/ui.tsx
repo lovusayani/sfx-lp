@@ -18,7 +18,7 @@ import { cn } from "./cn";
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 
 const buttonBase =
-  "relative inline-flex w-full select-none items-center justify-center gap-2 rounded-[17px] text-[15px] font-semibold transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50";
+  "relative inline-flex w-full select-none items-center justify-center gap-2 rounded-[12px] text-[15px] font-semibold transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50";
 
 const buttonVariants: Record<ButtonVariant, string> = {
   primary:
@@ -99,7 +99,7 @@ export function Chip({
     <As
       {...(As === "button" ? { type: "button" as const, onClick } : {})}
       className={cn(
-        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-[30px] px-3 py-2 text-[11px] font-semibold leading-none tracking-wide",
+        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-[12px] px-3 py-2 text-[11px] font-semibold leading-none tracking-wide",
         tones[tone],
         As === "button" && "transition hover:brightness-110",
         active && "ring-1 ring-sfx-gold",
@@ -207,7 +207,7 @@ export const Field = forwardRef<HTMLInputElement, FieldProps>(function Field(
       </label>
       <div
         className={cn(
-          "flex h-[46px] items-center rounded-[14px] border bg-sfx-field transition focus-within:border-sfx-gold",
+          "flex h-[46px] items-center rounded-[10px] border bg-sfx-field transition focus-within:border-sfx-gold",
           error ? "border-sfx-danger/70" : "border-sfx-line"
         )}
       >
@@ -264,7 +264,7 @@ export function SelectField({
           id={id}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="h-[46px] w-full appearance-none rounded-[14px] border border-sfx-line bg-sfx-field px-[17px] pr-10 text-[14px] text-sfx-text focus:border-sfx-gold focus:outline-none"
+          className="h-[46px] w-full appearance-none rounded-[10px] border border-sfx-line bg-sfx-field px-[17px] pr-10 text-[14px] text-sfx-text focus:border-sfx-gold focus:outline-none"
         >
           {options.map((o) => (
             <option key={o.value} value={o.value} className="bg-sfx-surface-solid">
@@ -312,14 +312,14 @@ export function Alert({ tone = "danger", children, className }: { tone?: "danger
     info: "border-sfx-border bg-sfx-gold-soft/50 text-sfx-text",
   } as const;
   return (
-    <p role={tone === "danger" ? "alert" : "status"} className={cn("rounded-[14px] border px-4 py-3 text-[13px]", tones[tone], className)}>
+    <p role={tone === "danger" ? "alert" : "status"} className={cn("rounded-[10px] border px-4 py-3 text-[13px]", tones[tone], className)}>
       {children}
     </p>
   );
 }
 
 export function Card({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("sfx-card p-[21px]", className)}>{children}</div>;
+  return <div className={cn("sfx-card p-4", className)}>{children}</div>;
 }
 
 export function SectionTitle({ children, action, className }: { children: ReactNode; action?: ReactNode; className?: string }) {

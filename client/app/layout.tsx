@@ -1,13 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Inter } from "next/font/google";
+import { Geist_Mono, Inter } from "next/font/google";
 
+import { ServiceWorkerRegistrar } from "@/components/pwa/ServiceWorkerRegistrar";
 import ForegroundPushListener from "@/components/push/ForegroundPushListener";
 import { FrontendThemeController } from "@/components/theme/FrontendThemeController";
 import "./globals.css";
 
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"], display: "swap" });
-// Admin panel keeps its current typography until its redesign.
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -16,6 +15,10 @@ export const metadata: Metadata = {
   applicationName: "Swiss Liquidity",
   appleWebApp: { capable: true, title: "Swiss Liquidity", statusBarStyle: "black-translucent" },
   formatDetection: { telephone: false },
+  icons: {
+    icon: [{ url: "/pwa-icon/64", sizes: "64x64", type: "image/png" }],
+    apple: [{ url: "/pwa-icon/180", sizes: "180x180", type: "image/png" }],
+  },
 };
 
 export const viewport: Viewport = {
@@ -25,8 +28,12 @@ export const viewport: Viewport = {
   themeColor: "#0b0c0a",
 };
 
-// Apply the stored theme before paint to avoid a light/dark flash.
-const themeBootScript = `try{if(!location.pathname.startsWith('/admin')){var t=localStorage.getItem('sfx_theme')||'dark';if(t==='system'){t=matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'}document.documentElement.classList.add(t)}}catch(e){document.documentElement.classList.add('dark')}`;
+/**
+ * Apply the right theme before paint to avoid a light/dark flash.
+ * Admin panel: the admin's own choice. App: the theme the admin set for users,
+ * or the user's own choice when the admin allows it (see FrontendThemeController).
+ */
+const themeBootScript = `try{var s=localStorage,t;if(location.pathname.indexOf('/admin')===0){t=s.getItem('sfx_admin_theme')||'dark'}else{var o=s.getItem('sfx_theme');t=(s.getItem('sfx_allow_user_theme')==='1'&&o)?o:(s.getItem('sfx_app_theme')||'dark')}if(t==='system'){t=matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'}document.documentElement.classList.add(t)}catch(e){document.documentElement.classList.add('dark')}`;
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
@@ -34,11 +41,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
       </head>
-      <body
-        className={`${inter.variable} ${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
-      >
+      <body className={`${inter.variable} ${geistMono.variable} antialiased`}>
         <FrontendThemeController />
         <ForegroundPushListener />
+        <ServiceWorkerRegistrar />
         {children}
       </body>
     </html>

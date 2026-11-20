@@ -42,6 +42,10 @@ export interface IUser extends Document {
   emailVerified: boolean;
   /** Ask for an emailed code at every sign-in. */
   twoFactorEmail: boolean;
+  totpEnabled: boolean;
+  totpSecret?: string;
+  totpPendingSecret?: string;
+  totpLastStep?: number;
   passwordResetHash?: string;
   passwordResetExpires?: Date;
   createdBy?: Schema.Types.ObjectId;
@@ -91,6 +95,11 @@ const userSchema = new Schema<IUser>(
     refreshTokenHash: { type: String },
     emailVerified: { type: Boolean, default: true },
     twoFactorEmail: { type: Boolean, default: false },
+    /** Authenticator-app sign-in codes; secrets are encrypted (services/totp.service). */
+    totpEnabled: { type: Boolean, default: false },
+    totpSecret: { type: String, select: false },
+    totpPendingSecret: { type: String, select: false },
+    totpLastStep: { type: Number, default: 0 },
     passwordResetHash: { type: String },
     passwordResetExpires: { type: Date },
     createdBy: { type: Schema.Types.ObjectId, ref: "User" },

@@ -59,6 +59,31 @@ State as of 2026-11-20 (session closed), branch `claude/friendly-noether-u03gym`
 - Password rule (client + API): 6+ characters with a letter and a number; special character optional.
   Mobile number optional at sign-up.
 
+## 2026-11-20 (later): owner tested OK; new features
+- **Cleanup**: removed unused legacy UI (`client/design/`, `components/dashboard/`, old `Sidebar`/`BottomNav`,
+  `components/branding/`, `mvc/`, `layouts/`) and the old shadcn/admin-theme CSS.
+- **Logos**: uploaded logos now replace the text wordmark (app sidebar, sign-in, auth screens, splash, admin
+  menu). Dark/light versions swap by CSS; "small" logo is used in the collapsed admin rail. Upload accepts any
+  PNG 24–2400 px (old exact 270×74 / 180×62 rule removed).
+- **Themes**: Admin → Settings → Appearance sets the app theme for all clients (dark/light/system) and whether
+  clients may override it (`Branding.appTheme`, `allowUserTheme`). Admin panel has its own theme switch in the
+  page header (saved per browser, `sfx_admin_theme`).
+- **Admin sidebar** collapses to an icon rail (toggle at the top); while collapsed it opens on hover.
+- **Support tickets**: clients open requests under Support → My requests, reply, mark solved; admin answers in
+  Admin → Support → Tickets (push to the client on reply if Firebase is set). Help pages moved to
+  Admin → Support → Help content.
+- **Activity log**: every successful admin change is recorded (`AuditLog`, kept 12 months, no passwords) and
+  shown in Admin → Activity log with search, area filter and CSV export.
+- **Authenticator app (TOTP)**: set up from Security / Settings; QR + manual key; secrets AES-GCM encrypted with
+  a key derived from `JWT_REFRESH_SECRET` (rotating it means users re-enrol). Sign-in then asks for the app code
+  (5 tries / 5 min). Turning it on switches email codes off. Biometric and SMS are still "coming soon".
+- **Installable app**: `manifest.webmanifest`, icons drawn at `/pwa-icon/{64,180,192,512}`, offline page
+  `/offline.html` served by the existing `firebase-messaging-sw.js` (pages are always network-first).
+- UI: smaller card padding/margins and corner radius across the app; home screen animations (staggered entrance,
+  count-up balance, gold sheen, live dot) and a fade/slide transition on every app and admin page change.
+- Credit "Developed by SPRS Infotech" (srstechacademy.com) at the bottom of the app, auth screens and admin.
+- Push: Firebase is **not configured yet** (no `FIREBASE_*` in server `.env`, no `NEXT_PUBLIC_FIREBASE_*` at build).
+
 ## Live on staging now
 - Release `202611191815-33d0586` (admin rebuild + onboarding design fix + Resend email), deployed
   2026-11-19 18:29 UTC. `sfx-api`/`sfx-web` active, `/api/health` 200, Curreex 301 (unchanged).
@@ -91,13 +116,13 @@ State as of 2026-11-20 (session closed), branch `claude/friendly-noether-u03gym`
 - One-time setup: `scripts/ops/setup-swissliq.sh` (run as root; idempotent; never touches Curreex).
 
 ## Next steps (in order)
-1. Owner tests email + new admin on staging and reports issues. Then remove the unused legacy UI (`design/`, old dashboard
-   components). Publish with `scripts/ops/publish-bundle.sh staging` (agent deploys within ~2 min).
+1. Owner tests email + new admin on staging — done 2026-11-20; legacy UI removed. Next: test tickets, activity log,
+   authenticator, themes. Publish with `scripts/ops/publish-bundle.sh staging` (agent deploys within ~2 min).
    Windows bundles include `sharp-win32` (unused: no next/image) — harmless.
 2. Domain + HTTPS — done (see Domains).
 3. Email domain — done. Owner should delete the full-access Resend key (`resend-full.key.txt`) once
    no more domain changes are needed; the server only uses the sending-only key.
-4. PWA manifest/service worker. Optional: support tickets + admin audit log (needs new API).
+4. PWA, support tickets, audit log, authenticator — done. Remaining: Firebase push config, biometric/SMS sign-in.
 
 ## Rules agreed with the owner
 - Never modify, restart or deploy to Curreex; never touch its database.

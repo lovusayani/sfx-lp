@@ -12,6 +12,9 @@ import {
   resendOtp,
   resetPassword,
   setTwoFactorEmail,
+  totpDisable,
+  totpEnable,
+  totpSetup,
   verifyOtp,
 } from "../controllers/auth.controller";
 import { protect } from "../middlewares/auth.middleware";
@@ -70,6 +73,15 @@ router.post(
   [body("token").isString(), body("newPassword").isString().isLength({ min: 6, max: 128 })],
   validateRequest,
   resetPassword
+);
+router.post("/totp/setup", protect, totpSetup);
+router.post("/totp/enable", protect, [body("code").isString().matches(/^\d{6}$/)], validateRequest, totpEnable);
+router.post(
+  "/totp/disable",
+  protect,
+  [body("code").optional().isString().isLength({ max: 6 }), body("password").optional().isString().isLength({ max: 128 })],
+  validateRequest,
+  totpDisable
 );
 router.post("/two-factor", protect, [body("enabled").isBoolean()], validateRequest, setTwoFactorEmail);
 

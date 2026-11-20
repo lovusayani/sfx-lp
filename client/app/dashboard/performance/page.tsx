@@ -30,17 +30,17 @@ export default function PerformancePage() {
   const pagePnl = (data?.rows || []).reduce((a, r) => a + (r.trade_type === "profit" ? 1 : -1) * Math.abs(Number(r.profit || 0)), 0);
 
   return (
-    <div className="sfx-enter flex flex-col gap-[19px]">
+    <div className="sfx-enter flex flex-col gap-3.5">
       <TopBar backHref="/dashboard/history" caption="PERFORMANCE" />
       <Display size="md" title="Performance" subtitle="Results of each trade on your account and the trade-wallet balance after it." />
 
       {data && data.total > 0 && (
         <div className="grid grid-cols-2 gap-4">
-          <div className="sfx-tile flex flex-col gap-2 p-5">
+          <div className="sfx-tile flex flex-col gap-2 p-4">
             <p className="text-[11px] font-medium tracking-[0.06em] text-sfx-muted">TRADES</p>
             <p className="text-[19px] font-semibold tabular-nums text-sfx-text">{data.total}</p>
           </div>
-          <div className="sfx-tile flex flex-col gap-2 p-5">
+          <div className="sfx-tile flex flex-col gap-2 p-4">
             <p className="text-[11px] font-medium tracking-[0.06em] text-sfx-muted">RESULT ON THIS PAGE</p>
             <p className={cn("text-[19px] font-semibold tabular-nums", pagePnl >= 0 ? "text-sfx-accent" : "text-sfx-danger")}>
               {formatMoney(pagePnl, { sign: true })}
@@ -55,7 +55,7 @@ export default function PerformancePage() {
         <EmptyState title="No results yet" body="Trade results appear here once trading on your account starts." />
       ) : (
         <>
-          <ul className="sfx-card divide-y divide-sfx-line px-[21px] py-2">
+          <ul className="sfx-card divide-y divide-sfx-line px-4 py-2">
             {data.rows.map((r) => {
               const profit = r.trade_type === "profit";
               const value = Math.abs(Number(r.profit || 0));

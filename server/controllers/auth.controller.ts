@@ -2,6 +2,8 @@ import crypto from "crypto";
 import { Request, Response } from "express";
 
 import { env } from "../config/env";
+import { Branding } from "../models/Branding";
+import { EmailCode } from "../models/EmailCode";
 import { User } from "../models/User";
 import {
   checkEmailCode,
@@ -18,6 +20,7 @@ import {
   hashToken,
   verifyRefreshToken,
 } from "../services/token.service";
+import { decryptSecret, encryptSecret, newTotpSecret, totpEnrollment, verifyTotp } from "../services/totp.service";
 import { asyncHandler } from "../utils/asyncHandler";
 
 const sanitizeUser = (user: any) => ({
@@ -35,7 +38,11 @@ const sanitizeUser = (user: any) => ({
   kycDocuments: user.kycDocuments,
   settings: user.settings,
   twoFactorEmail: Boolean(user.twoFactorEmail),
+  totpEnabled: Boolean(user.totpEnabled),
 });
+
+const TOTP_LOGIN_TTL_MS = 5 * 60 * 1000;
+const TOTP_MAX_ATTEMPTS = 5;
 
 /** Password rule shared with the client checklist: 6+ chars with a letter and a number (symbols optional). */
 const isStrongPassword = (p: string) => p.length >= 6 && /[A-Za-z]/.test(p) && /\d/.test(p);
@@ -103,6 +110,16 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
     });
   }
 
+  // Authenticator app: the password was right; finish with a code from the app.
+  if (user.totpEnabled) {
+    await EmailCode.findOneAndUpdate(
+      { email: user.email, purpose: "login" },
+      { codeHash: "totp", attempts: 0, expiresAt: new Date(Date.now() + TOTP_LOGIN_TTL_MS), sentAt: new Date() },
+      { upsert: true, setDefaultsOnInsert: true }
+    );
+    return res.json({ otpRequired: true, method: "totp", email: user.email });
+  }
+
   // Email two-step: the password was right; finish with a code.
   if (user.twoFactorEmail && emailEnabled()) {
     await withEmail(res, () => sendEmailCode(user.email, "login", { force: true }));
@@ -153,6 +170,11 @@ export const verifyOtp = asyncHandler(async (req: Request, res: Response) => {
   const code = String(req.body.code || "").trim();
   const purpose = req.body.purpose === "login" ? "login" : "register";
   const user = await User.findOne({ email });
+  if (user && purpose === "login" && user.totpEnabled) {
+    if (!(await checkTotpLogin(user, code))) return fail(res, 400, "That code is wrong or has expired. Sign in again if it keeps failing.");
+    if (user.status === "suspended") fail(res, 403, "This account is suspended. Please contact support.");
+    return res.json(await issueSession(res, user));
+  }
   if (!user || !(await checkEmailCode(email, purpose, code))) {
     return fail(res, 400, "That code is wrong or has expired. Request a new one.");
   }
@@ -164,6 +186,67 @@ export const verifyOtp = asyncHandler(async (req: Request, res: Response) => {
   }
   if (user.status === "suspended") fail(res, 403, "This account is suspended. Please contact support.");
   return res.json(await issueSession(res, user));
+});
+
+/** Authenticator code for a pending sign-in (password already checked, 5 tries, 5 minutes). */
+const checkTotpLogin = async (user: any, code: string): Promise<boolean> => {
+  const pending = await EmailCode.findOne({ email: user.email, purpose: "login", codeHash: "totp" });
+  if (!pending || pending.expiresAt.getTime() < Date.now() || pending.attempts >= TOTP_MAX_ATTEMPTS) return false;
+  const withSecret = await User.findById(user._id).select("+totpSecret totpLastStep");
+  const step = withSecret?.totpSecret ? verifyTotp(decryptSecret(withSecret.totpSecret), code, withSecret.totpLastStep || 0) : null;
+  if (step === null) {
+    pending.attempts += 1;
+    await pending.save();
+    return false;
+  }
+  await pending.deleteOne();
+  user.totpLastStep = step;
+  return true;
+};
+
+/** Step 1: create a new secret and show it as a QR code. Not active until confirmed. */
+export const totpSetup = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) return fail(res, 401, "Unauthorized");
+  const secret = newTotpSecret();
+  await User.updateOne({ _id: req.user._id }, { totpPendingSecret: encryptSecret(secret) });
+  const branding = await Branding.findOne({ key: "default" }).lean();
+  const issuer = branding?.appName || "Swiss Liquidity";
+  const { uri, qr } = await totpEnrollment(secret, req.user.email, issuer);
+  return res.json({ secret, uri, qr });
+});
+
+/** Step 2: confirm with a code from the app; turns authenticator sign-in on (and email codes off). */
+export const totpEnable = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) return fail(res, 401, "Unauthorized");
+  const user = await User.findById(req.user._id).select("+totpPendingSecret");
+  if (!user?.totpPendingSecret) return fail(res, 400, "Start the setup again.");
+  const secret = decryptSecret(user.totpPendingSecret);
+  const step = verifyTotp(secret, String(req.body.code || ""));
+  if (step === null) return fail(res, 400, "That code does not match. Check the time on your phone and try again.");
+  user.totpSecret = encryptSecret(secret);
+  user.totpPendingSecret = undefined;
+  user.totpEnabled = true;
+  user.totpLastStep = step;
+  user.twoFactorEmail = false;
+  await user.save();
+  return res.json({ message: "Authenticator app is on.", user: sanitizeUser(user) });
+});
+
+/** Turn the authenticator off; needs a current code or the account password. */
+export const totpDisable = asyncHandler(async (req: Request, res: Response) => {
+  if (!req.user) return fail(res, 401, "Unauthorized");
+  const user = await User.findById(req.user._id).select("+totpSecret +password");
+  if (!user) return fail(res, 401, "Unauthorized");
+  const code = String(req.body.code || "");
+  const password = String(req.body.password || "");
+  const okCode = user.totpSecret ? verifyTotp(decryptSecret(user.totpSecret), code, user.totpLastStep || 0) !== null : false;
+  const okPassword = password ? await user.comparePassword(password) : false;
+  if (!okCode && !okPassword) return fail(res, 400, "Enter a current code from your app or your password.");
+  user.totpEnabled = false;
+  user.totpSecret = undefined;
+  user.totpPendingSecret = undefined;
+  await user.save();
+  return res.json({ message: "Authenticator app is off.", user: sanitizeUser(user) });
 });
 
 export const resendOtp = asyncHandler(async (req: Request, res: Response) => {
@@ -218,6 +301,7 @@ export const setTwoFactorEmail = asyncHandler(async (req: Request, res: Response
   if (!req.user) return fail(res, 401, "Unauthorized");
   const enabled = Boolean(req.body.enabled);
   if (enabled && !emailEnabled()) fail(res, 501, "Email codes are not available yet.");
+  if (enabled && req.user.totpEnabled) fail(res, 409, "Turn off the authenticator app first.");
   req.user.twoFactorEmail = enabled;
   await req.user.save();
   return res.json({ message: enabled ? "Sign-in codes are on." : "Sign-in codes are off.", user: sanitizeUser(req.user) });

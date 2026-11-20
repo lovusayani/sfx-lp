@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { createContext, ReactNode, useContext, useEffect, useId, useRef, useState } from "react";
+import { createContext, ReactNode, useContext, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -15,16 +15,24 @@ import {
   LifeBuoy,
   LogOut,
   Menu,
+  Monitor,
+  Moon,
+  PanelLeftClose,
+  PanelLeftOpen,
+  ScrollText,
   Settings,
   ShieldCheck,
+  Sun,
   Users,
   X,
   type LucideIcon,
 } from "lucide-react";
 
+import { BrandLogo, Credit } from "@/components/sfx/Brand";
 import { cn } from "@/components/sfx/cn";
 import { Spinner } from "@/components/sfx/ui";
 import { useBranding } from "@/components/sfx/useBranding";
+import { setAdminTheme, useAdminTheme } from "@/components/theme/FrontendThemeController";
 
 /* ── Navigation (Aurum admin: 10 sections) ─────────────────────────── */
 
@@ -38,6 +46,7 @@ export const ADMIN_NAV: Array<{ href: string; label: string; icon: LucideIcon; m
   { href: "/admin/reports", label: "Reports", icon: FileText },
   { href: "/admin/support", label: "Support", icon: LifeBuoy },
   { href: "/admin/notices", label: "Notices", icon: Bell },
+  { href: "/admin/audit", label: "Activity log", icon: ScrollText },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
@@ -45,14 +54,24 @@ const isActive = (href: string, pathname: string) =>
   href === "/admin" ? pathname === "/admin" : pathname === href || pathname.startsWith(`${href}/`);
 
 function BrandMark({ compact }: { compact?: boolean }) {
-  const { shortName } = useBranding();
+  const { shortName, darkLogo, lightLogo, mobileLogo } = useBranding();
+  const hasLogo = Boolean(darkLogo || lightLogo || mobileLogo);
   return (
-    <Link href="/admin" className="flex items-center gap-3 text-sfx-text" aria-label="Admin home">
-      <Diamond size={26} className="shrink-0 text-sfx-gold" strokeWidth={2.2} />
-      {!compact && (
-        <span className="text-[15px] font-bold tracking-[0.04em]">
-          {shortName.toUpperCase()} <span className="text-sfx-muted">/</span> ADMIN
+    <Link href="/admin" className="flex min-w-0 items-center gap-3 text-sfx-text" aria-label="Admin home">
+      {hasLogo ? (
+        <span className="flex min-w-0 flex-col gap-1">
+          <BrandLogo height={compact ? 22 : 34} compact={compact} />
+          {!compact && <span className="text-[10px] font-bold tracking-[0.16em] text-sfx-muted">ADMIN CONSOLE</span>}
         </span>
+      ) : (
+        <>
+          <Diamond size={26} className="shrink-0 text-sfx-gold" strokeWidth={2.2} />
+          {!compact && (
+            <span className="whitespace-nowrap text-[15px] font-bold tracking-[0.04em]">
+              {shortName.toUpperCase()} <span className="text-sfx-muted">/</span> ADMIN
+            </span>
+          )}
+        </>
       )}
     </Link>
   );
@@ -67,27 +86,96 @@ function NavItem({ item, active, compact, onNavigate }: { item: (typeof ADMIN_NA
       aria-current={active ? "page" : undefined}
       title={compact ? item.label : undefined}
       className={cn(
-        "flex h-[42px] items-center gap-3 rounded-[16px] text-[14px] transition",
-        compact ? "justify-center px-0" : "px-4",
+        "flex h-[40px] items-center gap-3 rounded-[10px] text-[14px] transition-colors",
+        compact ? "justify-center px-0" : "px-3.5",
         active
-          ? "bg-sfx-gold-soft font-semibold text-sfx-text [&_svg]:text-sfx-gold"
-          : "bg-sfx-surface-2/70 text-sfx-muted hover:bg-sfx-surface-2 hover:text-sfx-text"
+          ? "bg-sfx-gold-soft font-semibold text-sfx-text [&_svg]:text-sfx-accent"
+          : "text-sfx-muted hover:bg-sfx-surface-2 hover:text-sfx-text"
       )}
     >
       <Icon size={17} className="shrink-0" />
-      {!compact && <span>{item.label}</span>}
+      {!compact && <span className="truncate">{item.label}</span>}
       {compact && <span className="sr-only">{item.label}</span>}
     </Link>
   );
 }
 
+/* Sidebar collapsed/expanded preference, shared by every admin page. */
+const SIDEBAR_KEY = "sfx_admin_sidebar";
+const SIDEBAR_EVENT = "sfx-admin-sidebar";
+const readCollapsed = (): boolean => {
+  try {
+    const v = localStorage.getItem(SIDEBAR_KEY);
+    if (v === "collapsed") return true;
+    if (v === "expanded") return false;
+  } catch {
+    // storage unavailable
+  }
+  return !window.matchMedia("(min-width: 1280px)").matches;
+};
+const subscribeSidebar = (cb: () => void) => {
+  window.addEventListener(SIDEBAR_EVENT, cb);
+  window.addEventListener("storage", cb);
+  return () => {
+    window.removeEventListener(SIDEBAR_EVENT, cb);
+    window.removeEventListener("storage", cb);
+  };
+};
+const setCollapsed = (collapsed: boolean) => {
+  try {
+    localStorage.setItem(SIDEBAR_KEY, collapsed ? "collapsed" : "expanded");
+  } catch {
+    // storage unavailable
+  }
+  window.dispatchEvent(new Event(SIDEBAR_EVENT));
+};
+
+/** Dark / light / system for the admin panel itself (the app's theme is set in Settings → Appearance). */
+export function AdminThemeToggle({ className }: { className?: string }) {
+  const theme = useAdminTheme();
+  const options: Array<{ value: "light" | "dark" | "system"; icon: LucideIcon; label: string }> = [
+    { value: "light", icon: Sun, label: "Light" },
+    { value: "dark", icon: Moon, label: "Dark" },
+    { value: "system", icon: Monitor, label: "System" },
+  ];
+  return (
+    <div role="radiogroup" aria-label="Admin theme" className={cn("flex items-center rounded-[10px] bg-sfx-surface-2 p-1", className)}>
+      {options.map((o) => {
+        const Icon = o.icon;
+        const active = theme === o.value;
+        return (
+          <button
+            key={o.value}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            title={`${o.label} theme`}
+            onClick={() => setAdminTheme(o.value)}
+            className={cn(
+              "flex h-[30px] w-[32px] items-center justify-center rounded-[8px] transition",
+              active ? "bg-sfx-surface-solid text-sfx-accent shadow-sm" : "text-sfx-muted hover:text-sfx-text"
+            )}
+          >
+            <Icon size={15} />
+            <span className="sr-only">{o.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 /**
  * Admin frame (Figma "Aurum / Admin").
- * Desktop (xl+): labelled sidebar. Tablet (md–xl): icon rail. Phone: top bar + slide-in menu.
+ * Tablet & desktop: sidebar that collapses to an icon rail with the toggle; while collapsed it
+ * slides open on hover and hides again when the pointer leaves. Phone: top bar + slide-in menu.
  */
 export function AdminShell({ children, header }: { children: ReactNode; header?: ReactNode }) {
   const pathname = usePathname();
   const [drawer, setDrawer] = useState(false);
+  const [peek, setPeek] = useState(false);
+  const collapsed = useSyncExternalStore(subscribeSidebar, readCollapsed, () => false);
+  const wide = !collapsed || peek;
 
   useEffect(() => {
     if (!drawer) return;
@@ -97,40 +185,51 @@ export function AdminShell({ children, header }: { children: ReactNode; header?:
   }, [drawer]);
 
   const footer = (
-    <div className="mt-auto px-1 pt-6">
-      <p className="text-[12px] font-bold tracking-[0.04em] text-sfx-gold">SYSTEM ADMIN</p>
-      <p className="text-[12px] text-sfx-muted">Secure console • v1.0</p>
+    <div className="mt-auto flex flex-col gap-3 px-1 pt-6">
+      <div>
+        <p className="text-[11px] font-bold tracking-[0.06em] text-sfx-accent">SYSTEM ADMIN</p>
+        <p className="text-[11px] text-sfx-muted">Secure console • v1.1</p>
+      </div>
+      <Credit className="text-left" />
     </div>
   );
 
   return (
     <div className="sfx sfx-page flex min-h-[100dvh]">
-      {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-[100dvh] w-[248px] shrink-0 flex-col overflow-y-auto border-r border-sfx-line bg-[#121310] px-5 py-7 xl:flex">
-        <BrandMark />
-        <div className="my-6 h-px bg-sfx-line" />
-        <nav aria-label="Admin" className="flex flex-col gap-[10px]">
-          {ADMIN_NAV.map((item) => (
-            <NavItem key={item.href} item={item} active={isActive(item.href, pathname)} />
-          ))}
-        </nav>
-        {footer}
-      </aside>
+      {/* Tablet & desktop sidebar: the outer box reserves the rail/full width; the panel can overlay on hover. */}
+      <div className={cn("relative hidden shrink-0 transition-[width] duration-300 ease-out md:block", collapsed ? "w-[72px]" : "w-[248px]")}>
+        <aside
+          onMouseEnter={() => collapsed && setPeek(true)}
+          onMouseLeave={() => setPeek(false)}
+          className={cn(
+            "fixed left-0 top-0 z-40 flex h-[100dvh] flex-col overflow-y-auto overflow-x-hidden border-r border-sfx-line bg-[var(--sfx-sidebar)] py-6 transition-[width,box-shadow] duration-300 ease-out",
+            wide ? "w-[248px] px-4" : "w-[72px] px-2.5",
+            collapsed && peek && "shadow-2xl"
+          )}
+        >
+          <div className={cn("flex items-center gap-2", wide ? "justify-between" : "flex-col")}>
+            <BrandMark compact={!wide} />
+            <button
+              type="button"
+              onClick={() => (setCollapsed(!collapsed), setPeek(false))}
+              aria-label={collapsed ? "Keep sidebar open" : "Collapse sidebar"}
+              title={collapsed ? "Keep sidebar open" : "Collapse sidebar"}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] text-sfx-muted transition hover:bg-sfx-surface-2 hover:text-sfx-text"
+            >
+              {collapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
+            </button>
+          </div>
+          <div className="my-5 h-px bg-sfx-line" />
+          <nav aria-label="Admin" className="flex flex-col gap-1.5">
+            {ADMIN_NAV.map((item) => (
+              <NavItem key={item.href} item={item} active={isActive(item.href, pathname)} compact={!wide} />
+            ))}
+          </nav>
+          {wide && footer}
+        </aside>
+      </div>
 
-      {/* Tablet rail */}
-      <aside className="sticky top-0 hidden h-[100dvh] w-[76px] shrink-0 flex-col items-stretch overflow-y-auto border-r border-sfx-line bg-[#121310] px-2.5 py-7 md:flex xl:hidden">
-        <div className="flex justify-center">
-          <BrandMark compact />
-        </div>
-        <div className="my-6 h-px bg-sfx-line" />
-        <nav aria-label="Admin" className="flex flex-col gap-[10px]">
-          {ADMIN_NAV.map((item) => (
-            <NavItem key={item.href} item={item} active={isActive(item.href, pathname)} compact />
-          ))}
-        </nav>
-      </aside>
-
-      <div className="min-w-0 flex-1">
+      <div className="flex min-w-0 flex-1 flex-col">
         {/* Phone top bar */}
         <div className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-sfx-line bg-sfx-bg/90 px-4 backdrop-blur md:hidden">
           <BrandMark />
@@ -143,17 +242,18 @@ export function AdminShell({ children, header }: { children: ReactNode; header?:
             <Menu size={20} />
           </button>
         </div>
-        <main className="mx-auto w-full max-w-[1240px] px-4 py-6 md:px-7 md:py-8 xl:px-11">
+        <main key={pathname} className="sfx-page-in mx-auto w-full max-w-[1240px] flex-1 px-4 py-6 md:px-7 md:py-8 xl:px-10">
           {header}
           {children}
         </main>
+        <Credit className="pb-4 md:hidden" />
       </div>
 
       {/* Phone drawer */}
       {drawer && (
         <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true" aria-label="Admin menu">
           <button type="button" aria-label="Close menu" className="absolute inset-0 bg-black/60" onClick={() => setDrawer(false)} />
-          <div className="sfx-enter absolute inset-y-0 left-0 flex w-[270px] flex-col overflow-y-auto bg-[#121310] px-5 py-6">
+          <div className="sfx-enter absolute inset-y-0 left-0 flex w-[270px] flex-col overflow-y-auto bg-[var(--sfx-sidebar)] px-5 py-6">
             <div className="flex items-center justify-between">
               <BrandMark />
               <button type="button" onClick={() => setDrawer(false)} aria-label="Close menu" className="flex h-9 w-9 items-center justify-center rounded-full text-sfx-muted">
@@ -161,11 +261,12 @@ export function AdminShell({ children, header }: { children: ReactNode; header?:
               </button>
             </div>
             <div className="my-5 h-px bg-sfx-line" />
-            <nav aria-label="Admin" className="flex flex-col gap-[10px]">
+            <nav aria-label="Admin" className="flex flex-col gap-1.5">
               {ADMIN_NAV.map((item) => (
                 <NavItem key={item.href} item={item} active={isActive(item.href, pathname)} onNavigate={() => setDrawer(false)} />
               ))}
             </nav>
+            <AdminThemeToggle className="mt-5 self-start" />
             {footer}
           </div>
         </div>
@@ -200,6 +301,7 @@ export function PageHeader({
       </div>
       <div className="flex items-center gap-2.5">
         {actions}
+        <AdminThemeToggle className="hidden md:flex" />
         <span className="hidden items-center gap-2 rounded-[14px] bg-sfx-surface-2 px-3.5 py-2.5 text-[13px] text-sfx-text sm:inline-flex">
           <span className="h-2 w-2 rounded-full bg-sfx-success" aria-hidden /> Secure session
         </span>
@@ -370,6 +472,7 @@ const PILL: Record<string, { label: string; tone: "gold" | "neutral" | "danger" 
   processing: { label: "Processing", tone: "neutral" },
   not_submitted: { label: "Not submitted", tone: "neutral" },
   open: { label: "Open", tone: "gold" },
+  answered: { label: "Answered", tone: "neutral" },
   closed: { label: "Closed", tone: "neutral" },
   suspended: { label: "Suspended", tone: "danger" },
   rejected: { label: "Rejected", tone: "danger" },

@@ -7,6 +7,7 @@ import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Bell, ShieldAlert } from "
 import { ActivityItem, loadActivity } from "@/components/sfx/activity";
 import { ActivityList, EmptyState, Skeleton } from "@/components/sfx/ActivityList";
 import { cn } from "@/components/sfx/cn";
+import { CountUp } from "@/components/sfx/CountUp";
 import { firstName, formatMoney, greeting } from "@/components/sfx/format";
 import { Chip, SectionTitle, TopBar } from "@/components/sfx/ui";
 import { useHydratedUser } from "@/hooks/useHydratedUser";
@@ -47,7 +48,7 @@ export default function DashboardHome() {
   const kycApproved = user?.kycStatus === "approved";
 
   return (
-    <div className="sfx-enter flex flex-col gap-[19px]">
+    <div className="sfx-stagger flex flex-col gap-3.5">
       <TopBar
         back={false}
         right={
@@ -74,7 +75,7 @@ export default function DashboardHome() {
       {user && !kycApproved && (
         <Link
           href={user.kycStatus === "not_submitted" ? "/kyc" : "/kyc/status"}
-          className="flex items-center gap-3 rounded-[18px] border border-sfx-border bg-sfx-gold-soft/40 px-4 py-3 text-[13px] text-sfx-text"
+          className="flex items-center gap-3 rounded-[12px] border border-sfx-border bg-sfx-gold-soft/40 px-4 py-3 text-[13px] text-sfx-text"
         >
           <ShieldAlert size={18} className="shrink-0 text-sfx-accent" />
           <span className="flex-1">
@@ -86,14 +87,15 @@ export default function DashboardHome() {
         </Link>
       )}
 
-      <div className="grid gap-[19px] lg:grid-cols-[1.15fr_1fr] lg:items-start">
-        <div className="flex flex-col gap-[19px]">
+      <div className="grid gap-3.5 lg:grid-cols-[1.15fr_1fr] lg:items-start">
+        <div className="sfx-stagger flex flex-col gap-3.5">
           {/* Portfolio card (Figma 2:396) */}
-          <section className="sfx-card flex flex-col gap-3 p-[21px]" aria-label="Total portfolio value">
+          <section className="sfx-card sfx-sheen flex flex-col gap-3 p-4" aria-label="Total portfolio value">
+            <span aria-hidden className="sfx-glow" />
             <p className="text-[12px] font-medium tracking-[0.08em] text-sfx-muted">TOTAL PORTFOLIO VALUE</p>
             {balances ? (
-              <p className="text-[38px] font-bold leading-tight tracking-tight text-sfx-accent tabular-nums md:text-[44px]">
-                {formatMoney(total)}
+              <p className="text-[34px] font-bold leading-tight tracking-tight text-sfx-accent tabular-nums md:text-[42px]">
+                <CountUp value={total} format={(n) => formatMoney(n)} />
               </p>
             ) : (
               <Skeleton className="h-11 w-56" />
@@ -102,12 +104,13 @@ export default function DashboardHome() {
               {todayPnl === null ? (
                 <span className="text-sfx-muted">Trading results appear once your trade account is linked.</span>
               ) : (
-                <>
+                <span className="inline-flex items-center gap-2">
+                  <span aria-hidden className="sfx-live-dot" />
                   <span className={todayPnl >= 0 ? "text-sfx-accent" : "text-sfx-danger"}>
                     {todayPnl >= 0 ? "↑" : "↓"} {formatMoney(todayPnl, { sign: true })}
                   </span>{" "}
                   <span className="text-sfx-muted">today</span>
-                </>
+                </span>
               )}
             </p>
             <div className="mt-3 flex flex-wrap gap-1.5 sm:gap-2">
@@ -118,7 +121,7 @@ export default function DashboardHome() {
           </section>
 
           {/* Stat tiles (Figma 2:408) */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="sfx-stagger grid grid-cols-2 gap-3">
             <StatTile label="MAIN WALLET" value={balances ? formatMoney(balances.mainWalletBalance, { decimals: 0 }) : null} />
             <StatTile label="TRADE WALLET" value={balances ? formatMoney(balances.tradeWalletBalance, { decimals: 0 }) : null} />
             {overview && (
@@ -131,7 +134,7 @@ export default function DashboardHome() {
         </div>
 
         {/* Recent activity (Figma 2:415–2:416) */}
-        <section className="flex flex-col gap-4" aria-label="Recent activity">
+        <section className="flex flex-col gap-3" aria-label="Recent activity">
           <SectionTitle
             action={
               <Link href="/dashboard/history" className="text-[12px] font-semibold text-sfx-accent hover:underline">
@@ -165,7 +168,7 @@ function QuickAction({
   label: string;
   disabled?: boolean;
 }) {
-  const cls = "inline-flex items-center gap-1 rounded-[30px] bg-sfx-gold-soft px-3 py-2 text-[11px] font-semibold text-sfx-accent sm:gap-1.5 sm:px-3.5 sm:text-[12px]";
+  const cls = "inline-flex items-center gap-1 rounded-[12px] bg-sfx-gold-soft px-3 py-2 text-[11px] font-semibold text-sfx-accent sm:gap-1.5 sm:px-3.5 sm:text-[12px]";
   if (disabled) {
     return (
       <span className={cn(cls, "cursor-not-allowed opacity-45")} title="Available after verification" aria-disabled>
@@ -174,7 +177,7 @@ function QuickAction({
     );
   }
   return (
-    <Link href={href} className={cn(cls, "transition hover:brightness-110")}>
+    <Link href={href} className={cn(cls, "sfx-press hover:brightness-110")}>
       <Icon size={13} /> {label}
     </Link>
   );
@@ -182,7 +185,7 @@ function QuickAction({
 
 function StatTile({ label, value, accent }: { label: string; value: string | null; accent?: boolean }) {
   return (
-    <div className="sfx-tile flex flex-col gap-2 p-5">
+    <div className="sfx-tile sfx-lift flex flex-col gap-2 p-4">
       <p className="text-[11px] font-medium tracking-[0.06em] text-sfx-muted">{label}</p>
       {value === null ? (
         <Skeleton className="h-6 w-20" />

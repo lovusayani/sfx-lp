@@ -8,6 +8,8 @@ export interface BrandingAssets {
   darkLogoPath: string;
   lightLogoPath: string;
   mobileLogoPath: string;
+  appTheme?: "dark" | "light" | "system";
+  allowUserTheme?: boolean;
 }
 
 export const getBrandingAssets = async (): Promise<BrandingAssets> => {
@@ -33,6 +35,14 @@ export const uploadAdminBrandingLogo = async (
 
   return data.branding;
 };
+export const updateAppTheme = async (appTheme: "dark" | "light" | "system", allowUserTheme: boolean): Promise<BrandingAssets> => {
+  const data = await apiFetch<{ branding: BrandingAssets }>("/admin/setup/theme", {
+    method: "PATCH",
+    body: { appTheme, allowUserTheme },
+  });
+  return data.branding;
+};
+
 export const updateBrandingName = async (appName: string, shortName: string): Promise<BrandingAssets> => {
   const data = await apiFetch<{ branding: BrandingAssets }>("/admin/setup/branding-name", {
     method: "PATCH",

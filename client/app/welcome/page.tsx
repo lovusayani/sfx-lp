@@ -35,7 +35,7 @@ export default function WelcomePage() {
         }
         subtitle="Manage your LP account, funds and trades with confidence."
       />
-      <div className="mt-1 flex flex-col gap-[19px]">
+      <div className="mt-1 flex flex-col gap-3.5">
         <ButtonLink href="/onboarding">Get started</ButtonLink>
         <ButtonLink href="/login" variant="secondary">
           I have an account

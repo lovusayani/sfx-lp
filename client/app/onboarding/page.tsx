@@ -104,7 +104,7 @@ function OnboardingInner() {
 /** Figma 2:72 — illustrative balance card (sample figures, not account data). */
 function BalancePreview() {
   return (
-    <div className="sfx-card flex min-h-[315px] flex-col justify-center gap-4 px-[21px] py-8" aria-label="Example balance card">
+    <div className="sfx-card flex min-h-[315px] flex-col justify-center gap-4 px-4 py-8" aria-label="Example balance card">
       <p className="text-[12px] font-medium tracking-[0.08em] text-sfx-muted">TOTAL BALANCE</p>
       <p className="text-[38px] font-bold leading-none text-sfx-accent">{formatMoney(95467)}</p>
       <p className="text-[13px] text-sfx-text">
@@ -128,7 +128,7 @@ function BalancePreview() {
 /** Figma 2:98 — security emblem card. */
 function SecurityPreview() {
   return (
-    <div className="sfx-card flex min-h-[306px] flex-col items-center justify-center gap-4 px-[21px] text-center">
+    <div className="sfx-card flex min-h-[306px] flex-col items-center justify-center gap-4 px-4 text-center">
       <svg width="96" height="96" viewBox="0 0 96 96" aria-hidden className="text-sfx-accent">
         <rect x="23" y="23" width="50" height="50" rx="2" transform="rotate(45 48 48)" fill="none" stroke="currentColor" strokeWidth="6" />
         <rect x="37" y="37" width="22" height="22" rx="1.5" transform="rotate(45 48 48)" fill="currentColor" />

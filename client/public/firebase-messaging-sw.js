@@ -1,5 +1,38 @@
 /* eslint-disable no-undef */
 
+/* ── Installable app: keep an offline page for when the network is gone ── */
+const OFFLINE_CACHE = "sfx-offline-v1";
+const OFFLINE_URL = "/offline.html";
+
+self.addEventListener("install", function (event) {
+  event.waitUntil(
+    caches.open(OFFLINE_CACHE).then(function (cache) {
+      return cache.add(new Request(OFFLINE_URL, { cache: "reload" }));
+    })
+  );
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", function (event) {
+  event.waitUntil(
+    caches.keys().then(function (keys) {
+      return Promise.all(
+        keys.filter(function (k) { return k.startsWith("sfx-offline-") && k !== OFFLINE_CACHE; }).map(function (k) { return caches.delete(k); })
+      );
+    }).then(function () { return self.clients.claim(); })
+  );
+});
+
+// Pages always come from the network (balances must be live); only a failed page load shows the offline page.
+self.addEventListener("fetch", function (event) {
+  if (event.request.mode !== "navigate") return;
+  event.respondWith(
+    fetch(event.request).catch(function () {
+      return caches.match(OFFLINE_URL);
+    })
+  );
+});
+
 importScripts("https://www.gstatic.com/firebasejs/12.10.0/firebase-app-compat.js");
 importScripts("https://www.gstatic.com/firebasejs/12.10.0/firebase-messaging-compat.js");
 
@@ -29,7 +62,7 @@ importScripts("https://www.gstatic.com/firebasejs/12.10.0/firebase-messaging-com
       payload.notification?.title || payload.data?.title || "New notification";
     const notificationOptions = {
       body: payload.notification?.body || payload.data?.body || "You have a new update.",
-      icon: payload.notification?.icon || "/favicon.ico",
+      icon: payload.notification?.icon || "/pwa-icon/192",
       image: payload.notification?.image,
       data: {
         url: payload.data?.url || "/dashboard",

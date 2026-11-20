@@ -18,7 +18,7 @@ import {
 
 import { logoutUser } from "@/services/auth.service";
 
-import { Wordmark } from "./Brand";
+import { Credit, Wordmark } from "./Brand";
 import { cn } from "./cn";
 
 type NavItem = { href: string; label: string; icon: LucideIcon; match?: (p: string) => boolean };
@@ -85,15 +85,16 @@ export function AppShell({ children }: { children: ReactNode }) {
         <button
           type="button"
           onClick={signOut}
-          className="mt-auto flex items-center gap-3 rounded-[14px] px-3 py-2.5 text-[14px] text-sfx-muted hover:bg-sfx-gold-soft/40 hover:text-sfx-text"
+          className="mt-auto flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-[14px] text-sfx-muted hover:bg-sfx-gold-soft/40 hover:text-sfx-text"
         >
           <LogOut size={18} /> Sign out
         </button>
       </aside>
 
       <main className="min-w-0 flex-1 pb-[calc(84px+env(safe-area-inset-bottom))] lg:pb-10">
-        <div className="mx-auto w-full max-w-[460px] px-8 pt-[34px] md:max-w-[720px] md:px-10 lg:max-w-[1080px] lg:px-12 lg:pt-10">
+        <div className="mx-auto w-full max-w-[460px] px-4 pt-5 md:max-w-[720px] md:px-6 lg:max-w-[1080px] lg:px-8 lg:pt-8">
           {children}
+          <Credit className="mt-8 pb-2" />
         </div>
       </main>
 
@@ -134,7 +135,7 @@ function SideLink({ item, active }: { item: NavItem; active: boolean }) {
       href={item.href}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "flex items-center gap-3 rounded-[14px] px-3 py-2.5 text-[14px] font-medium",
+        "flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-[14px] font-medium",
         active ? "bg-sfx-gold-soft text-sfx-accent" : "text-sfx-muted hover:bg-sfx-gold-soft/40 hover:text-sfx-text"
       )}
     >

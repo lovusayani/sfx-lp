@@ -21,7 +21,7 @@ const nextConfig: NextConfig = {
       ["/admin/trade-broker/api", "/admin/trading/sources"],
       ["/admin/prof-loss", "/admin/trading/results"],
       ["/admin/notification", "/admin/notices"],
-      ["/admin/page-setup", "/admin/support"],
+      ["/admin/page-setup", "/admin/support/content"],
       ["/admin/payment-setup", "/admin/settings"],
       ["/admin/setup", "/admin/settings"],
     ].map(([source, destination]) => ({ source, destination, permanent: false }));

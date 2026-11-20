@@ -30,6 +30,7 @@ import {
   getWalletSwapHistory,
   swapWalletBalance,
 } from "../controllers/wallet.controller";
+import { closeMyTicket, createTicket, getMyTicket, listMyTickets, replyMyTicket } from "../controllers/support.controller";
 import { protect } from "../middlewares/auth.middleware";
 import { enforceKycApproved } from "../middlewares/kyc.middleware";
 import { enforceOnboarding } from "../middlewares/onboarding.middleware";
@@ -161,5 +162,25 @@ router.get("/notices/:id", [param("id").isMongoId()], validateRequest, getMyNoti
 router.get("/pnl-uploads", listPnlUploads);
 router.get("/pnl-uploads/:id/download", [param("id").isMongoId()], validateRequest, downloadPnlUpload);
 router.get("/page-content/:slug", getPublicPageContent);
+
+router.get("/support/tickets", listMyTickets);
+router.post(
+  "/support/tickets",
+  [
+    body("subject").isString().trim().isLength({ min: 3, max: 150 }),
+    body("category").optional().isIn(["account", "deposit", "withdrawal", "trading", "kyc", "other"]),
+    body("message").isString().trim().isLength({ min: 1, max: 4000 }),
+  ],
+  validateRequest,
+  createTicket
+);
+router.get("/support/tickets/:id", [param("id").isMongoId()], validateRequest, getMyTicket);
+router.post(
+  "/support/tickets/:id/reply",
+  [param("id").isMongoId(), body("message").isString().trim().isLength({ min: 1, max: 4000 })],
+  validateRequest,
+  replyMyTicket
+);
+router.post("/support/tickets/:id/close", [param("id").isMongoId()], validateRequest, closeMyTicket);
 
 export default router;

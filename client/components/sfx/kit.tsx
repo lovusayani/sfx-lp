@@ -61,7 +61,7 @@ export function Sheet({
         role="dialog"
         aria-modal="true"
         aria-labelledby={id}
-        className="sfx-enter sfx-safe-bottom relative w-full max-w-[480px] rounded-t-[28px] border border-sfx-border bg-sfx-surface-solid px-6 pb-6 pt-5 sm:rounded-[28px]"
+        className="sfx-enter sfx-safe-bottom relative w-full max-w-[480px] rounded-t-[18px] border border-sfx-border bg-sfx-surface-solid px-6 pb-6 pt-5 sm:rounded-[12px]"
       >
         <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-sfx-line sm:hidden" aria-hidden />
         <div className="mb-5 flex items-center justify-between">
@@ -98,7 +98,7 @@ export function TextArea({
       </label>
       <textarea
         id={id}
-        className="min-h-[96px] rounded-[14px] border border-sfx-line bg-sfx-field px-[17px] py-3 text-[14px] text-sfx-text placeholder:text-sfx-muted/70 focus:border-sfx-gold focus:outline-none"
+        className="min-h-[96px] rounded-[10px] border border-sfx-line bg-sfx-field px-[17px] py-3 text-[14px] text-sfx-text placeholder:text-sfx-muted/70 focus:border-sfx-gold focus:outline-none"
         {...rest}
       />
     </div>
@@ -132,7 +132,7 @@ export function OptionCard({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "flex w-full items-center gap-3 rounded-[18px] border px-4 py-3.5 text-left transition",
+        "flex w-full items-center gap-3 rounded-[12px] border px-4 py-3.5 text-left transition",
         selected ? "border-sfx-gold bg-sfx-gold-soft/50" : "border-sfx-line bg-sfx-surface-2 hover:border-sfx-border-strong",
         disabled && "cursor-not-allowed opacity-45 hover:border-sfx-line"
       )}
@@ -210,7 +210,7 @@ export function Segmented<T extends string>({
   label: string;
 }) {
   return (
-    <div role="radiogroup" aria-label={label} className="flex rounded-[16px] border border-sfx-line bg-sfx-surface-2 p-1">
+    <div role="radiogroup" aria-label={label} className="flex rounded-[12px] border border-sfx-line bg-sfx-surface-2 p-1">
       {options.map((o) => (
         <button
           key={o.value}
@@ -233,7 +233,7 @@ export function Segmented<T extends string>({
 /* ── Menu list (profile, more…) ────────────────────────────────────── */
 
 export function MenuList({ children, className }: { children: ReactNode; className?: string }) {
-  return <ul className={cn("sfx-card divide-y divide-sfx-line px-[21px] py-1", className)}>{children}</ul>;
+  return <ul className={cn("sfx-card divide-y divide-sfx-line px-4 py-1", className)}>{children}</ul>;
 }
 
 export function MenuRow({
@@ -280,7 +280,7 @@ export function MenuRow({
 export function KycGate({ status }: { status?: string }) {
   const pending = status === "pending";
   return (
-    <div className="sfx-card flex flex-col items-center gap-3 px-6 py-10 text-center">
+    <div className="sfx-card flex flex-col items-center gap-3 px-4 py-8 text-center">
       <span className="flex h-12 w-12 items-center justify-center rounded-full bg-sfx-gold-soft text-sfx-accent">
         <ShieldAlert size={22} />
       </span>
@@ -292,7 +292,7 @@ export function KycGate({ status }: { status?: string }) {
       </p>
       <Link
         href={pending ? "/kyc/status" : "/kyc"}
-        className="mt-1 rounded-[30px] bg-sfx-gold-soft px-4 py-2 text-[12px] font-semibold text-sfx-accent hover:brightness-110"
+        className="mt-1 rounded-[12px] bg-sfx-gold-soft px-4 py-2 text-[12px] font-semibold text-sfx-accent hover:brightness-110"
       >
         {pending ? "Check status" : "Start verification"}
       </Link>

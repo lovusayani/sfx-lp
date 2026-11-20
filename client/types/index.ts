@@ -31,6 +31,8 @@ export interface User {
   settings: UserSettings;
   /** Emailed code required at every sign-in. */
   twoFactorEmail?: boolean;
+  /** Authenticator-app code required at every sign-in. */
+  totpEnabled?: boolean;
 }
 
 export interface AuthSession {

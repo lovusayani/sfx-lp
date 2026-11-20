@@ -27,6 +27,7 @@ import {
   updateAdminPageContent,
   updateLpUserLockInBalance,
   updateLpUserPassword,
+  updateAppTheme,
   uploadBrandingLogo,
   updateBrandingName,
   getPaymentSetup,
@@ -57,6 +58,14 @@ import {
 } from "../controllers/chargeSetting.controller";
 import { exportData, listDataTables, resetData } from "../controllers/dataManagement.controller";
 import { createNotice, listAdminNotices } from "../controllers/notice.controller";
+import {
+  adminGetTicket,
+  adminListAuditLog,
+  adminListTickets,
+  adminReplyTicket,
+  adminSetTicketStatus,
+} from "../controllers/support.controller";
+import { auditAdminActions } from "../middlewares/audit.middleware";
 import { protect } from "../middlewares/auth.middleware";
 import { authorizeRole } from "../middlewares/role.middleware";
 import { pdfUpload, pngUpload, imageUpload } from "../middlewares/upload.middleware";
@@ -64,7 +73,23 @@ import { validateRequest } from "../middlewares/validate.middleware";
 
 const router = Router();
 
-router.use(protect, authorizeRole("admin"));
+router.use(protect, authorizeRole("admin"), auditAdminActions);
+
+router.get("/support/tickets", adminListTickets);
+router.get("/support/tickets/:id", [param("id").isMongoId()], validateRequest, adminGetTicket);
+router.post(
+  "/support/tickets/:id/reply",
+  [param("id").isMongoId(), body("message").isString().trim().isLength({ min: 1, max: 4000 }), body("close").optional().isBoolean()],
+  validateRequest,
+  adminReplyTicket
+);
+router.patch(
+  "/support/tickets/:id/status",
+  [param("id").isMongoId(), body("status").isIn(["open", "answered", "closed"])],
+  validateRequest,
+  adminSetTicketStatus
+);
+router.get("/audit-log", adminListAuditLog);
 
 router.post(
   "/users",
@@ -140,6 +165,12 @@ router.patch(
   updateBrandingName
 );
 
+router.patch(
+  "/setup/theme",
+  [body("appTheme").isIn(["dark", "light", "system"]), body("allowUserTheme").optional().isBoolean()],
+  validateRequest,
+  updateAppTheme
+);
 router.post(
   "/setup/logos/:variant",
   [param("variant").isString().isIn(["dark", "light", "mobile"])],

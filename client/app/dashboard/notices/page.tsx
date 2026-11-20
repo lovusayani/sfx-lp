@@ -41,7 +41,7 @@ export default function NoticesPage() {
   const unread = (notices || []).filter((n) => !n.read).length;
 
   return (
-    <div className="sfx-enter flex flex-col gap-[19px]">
+    <div className="sfx-enter flex flex-col gap-3.5">
       <TopBar caption="NOTICES" />
       <Display size="md" title="Notices" subtitle={unread ? `${unread} unread` : "Updates and announcements from Swiss Liquidity."} />
       {error && <Alert>{error}</Alert>}
@@ -50,7 +50,7 @@ export default function NoticesPage() {
       ) : notices.length === 0 ? (
         <EmptyState title="You’re all caught up" body="New announcements will appear here." />
       ) : (
-        <ul className="sfx-card max-w-[720px] divide-y divide-sfx-line px-[21px] py-1">
+        <ul className="sfx-card max-w-[720px] divide-y divide-sfx-line px-4 py-1">
           {notices.map((n) => (
             <li key={n.id}>
               <button

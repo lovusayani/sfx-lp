@@ -71,7 +71,7 @@ export default function RegisterPage() {
       <Chip className="self-start">GET STARTED</Chip>
       <Display title="Create your LP account." subtitle="Start with a few details. Verification follows." />
 
-      <form onSubmit={onSubmit} className="flex flex-col gap-[19px]">
+      <form onSubmit={onSubmit} className="flex flex-col gap-3.5">
         <Field label="Full name" autoComplete="name" placeholder="Your legal name" value={form.fullName} onChange={set("fullName")} required />
         <Field label="Email address" type="email" autoComplete="email" placeholder="you@example.com" value={form.email} onChange={set("email")} required />
         <Field label="Mobile number (optional)" type="tel" autoComplete="tel" inputMode="tel" placeholder="+91 ••••• •••••" value={form.phone} onChange={set("phone")} />

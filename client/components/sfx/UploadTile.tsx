@@ -52,7 +52,7 @@ export function UploadTile({
     <label
       htmlFor={id}
       className={cn(
-        "relative flex cursor-pointer flex-col items-center justify-center gap-2 overflow-hidden rounded-[22px] border border-dashed px-5 text-center transition",
+        "relative flex cursor-pointer flex-col items-center justify-center gap-2 overflow-hidden rounded-[14px] border border-dashed px-5 text-center transition",
         tall ? "min-h-[205px]" : "min-h-[132px]",
         file ? "border-sfx-border-strong bg-sfx-gold-soft/30" : "border-sfx-border bg-sfx-surface-2 hover:border-sfx-border-strong",
         className

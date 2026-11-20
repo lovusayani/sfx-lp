@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ShieldCheck } from "lucide-react";
 
-import { Segmented, Toggle } from "@/components/sfx/kit";
+import { MenuRow, Segmented, Toggle } from "@/components/sfx/kit";
+import { useBranding } from "@/components/sfx/useBranding";
 import { Alert, Button, Display, Eyebrow, TopBar } from "@/components/sfx/ui";
 import { setFrontendTheme } from "@/components/theme/FrontendThemeController";
 import { useHydratedUser } from "@/hooks/useHydratedUser";
@@ -21,6 +23,7 @@ const SIZES = [
 /** Appearance and notification preferences (saved to the account). */
 export default function SettingsPage() {
   const { user, setUser } = useHydratedUser();
+  const branding = useBranding();
   const [form, setForm] = useState<UserSettings>(DEFAULTS);
   const [message, setMessage] = useState<{ tone: "success" | "danger"; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
@@ -57,12 +60,13 @@ export default function SettingsPage() {
   const sizeValue = String(form.fontSize <= 14 ? 14 : form.fontSize >= 18 ? 18 : 16);
 
   return (
-    <div className="sfx-enter flex max-w-[720px] flex-col gap-[19px]">
+    <div className="sfx-enter flex max-w-[720px] flex-col gap-3.5">
       <TopBar caption="SETTINGS" />
       <Display size="md" title="Settings" />
 
-      <section className="sfx-card flex flex-col gap-5 p-[21px]" aria-label="Appearance">
+      <section className="sfx-card flex flex-col gap-5 p-4" aria-label="Appearance">
         <h2 className="text-[16px] font-semibold text-sfx-text">Appearance</h2>
+        {branding.allowUserTheme ? (
         <div className="flex flex-col gap-2">
           <Eyebrow>Theme</Eyebrow>
           <Segmented
@@ -76,13 +80,18 @@ export default function SettingsPage() {
             ]}
           />
         </div>
+        ) : (
+          <p className="text-[13px] text-sfx-muted">
+            Theme: <span className="font-medium capitalize text-sfx-text">{branding.appTheme}</span> — set by {branding.appName}.
+          </p>
+        )}
         <div className="flex flex-col gap-2">
           <Eyebrow>Text size</Eyebrow>
           <Segmented label="Text size" value={sizeValue} onChange={(v) => set("fontSize", Number(v))} options={SIZES} />
         </div>
       </section>
 
-      <section className="sfx-card px-[21px] py-2" aria-label="Notifications">
+      <section className="sfx-card px-4 py-2" aria-label="Notifications">
         <h2 className="pt-3 text-[16px] font-semibold text-sfx-text">Notifications</h2>
         <div className="divide-y divide-sfx-line">
           <Toggle
@@ -100,14 +109,28 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <section className="sfx-card px-[21px] py-2" aria-label="Security">
+      <section className="sfx-card px-4 py-2" aria-label="Security">
         <h2 className="pt-3 text-[16px] font-semibold text-sfx-text">Security</h2>
+        <ul>
+          <MenuRow
+            href="/security"
+            icon={ShieldCheck}
+            label="Authenticator app"
+            value={user?.totpEnabled ? "On" : "Set up"}
+          />
+        </ul>
         <Toggle
           label="Email code at sign-in"
-          description={twoFaBusy ? "Saving…" : `A six-digit code is sent to ${user?.email || "your email"} each time you sign in`}
+          description={
+            user?.totpEnabled
+              ? "Not needed while the authenticator app is on"
+              : twoFaBusy
+                ? "Saving…"
+                : `A six-digit code is sent to ${user?.email || "your email"} each time you sign in`
+          }
           checked={Boolean(user?.twoFactorEmail)}
           onChange={async (v) => {
-            if (!user || twoFaBusy) return;
+            if (!user || twoFaBusy || user.totpEnabled) return;
             setTwoFaBusy(true);
             setMessage(null);
             try {

@@ -27,7 +27,7 @@ export default function KycDocumentsPage() {
   const status = user?.kycStatus || "not_submitted";
 
   return (
-    <div className="sfx-enter flex flex-col gap-[19px]">
+    <div className="sfx-enter flex flex-col gap-3.5">
       <TopBar backHref="/dashboard/profile" caption="VERIFICATION" />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Display size="md" title="Your documents" />
@@ -58,7 +58,7 @@ export default function KycDocumentsPage() {
                     <FileText size={16} /> Open PDF
                   </OpenFileButton>
                 ) : (
-                  <SecureImage fileRef={ref} alt={d.label} className="h-44 w-full rounded-[14px] bg-sfx-surface-solid object-contain" />
+                  <SecureImage fileRef={ref} alt={d.label} className="h-44 w-full rounded-[10px] bg-sfx-surface-solid object-contain" />
                 )}
               </section>
             );

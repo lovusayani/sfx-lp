@@ -49,12 +49,12 @@ export default function WalletPage() {
   const kycApproved = user?.kycStatus === "approved";
 
   return (
-    <div className="sfx-enter flex flex-col gap-[19px]">
+    <div className="sfx-enter flex flex-col gap-3.5">
       <TopBar backHref="/dashboard" caption="WALLET" />
 
-      <div className="grid gap-[19px] lg:grid-cols-[1.15fr_1fr] lg:items-start">
-        <div className="flex flex-col gap-[19px]">
-          <section className="sfx-card flex flex-col gap-3 p-[21px]" aria-label="Total balance">
+      <div className="grid gap-3.5 lg:grid-cols-[1.15fr_1fr] lg:items-start">
+        <div className="flex flex-col gap-3.5">
+          <section className="sfx-card flex flex-col gap-3 p-4" aria-label="Total balance">
             <p className="text-[12px] font-medium tracking-[0.08em] text-sfx-muted">TOTAL BALANCE</p>
             {balances ? (
               <p className="text-[38px] font-bold leading-tight tracking-tight text-sfx-accent tabular-nums md:text-[44px]">
@@ -139,7 +139,7 @@ export default function WalletPage() {
 
 function WalletTile({ label, hint, value }: { label: string; hint: React.ReactNode; value: string | null }) {
   return (
-    <div className="sfx-tile flex flex-col gap-2 p-5">
+    <div className="sfx-tile flex flex-col gap-2 p-4">
       <p className="text-[11px] font-medium tracking-[0.06em] text-sfx-muted">{label}</p>
       {value === null ? <Skeleton className="h-7 w-28" /> : <p className="text-[22px] font-semibold tabular-nums text-sfx-text">{value}</p>}
       <p className="text-[11px] text-sfx-muted">{hint}</p>
@@ -161,7 +161,7 @@ function ActionTile({
   disabled?: boolean;
 }) {
   const cls = cn(
-    "flex flex-col items-center gap-2 rounded-[22px] border border-sfx-line bg-sfx-surface-2 py-4 text-[12px] font-semibold text-sfx-text transition",
+    "flex flex-col items-center gap-2 rounded-[14px] border border-sfx-line bg-sfx-surface-2 py-4 text-[12px] font-semibold text-sfx-text transition",
     disabled ? "cursor-not-allowed opacity-45" : "hover:border-sfx-border-strong"
   );
   const body = (

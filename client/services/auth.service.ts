@@ -6,17 +6,23 @@ let inFlightHydration: Promise<User | null> | null = null;
 
 /** Password was accepted but an emailed code is needed (sign-in code, or unconfirmed sign-up). */
 export class CodeRequiredError extends Error {
-  constructor(message: string, public email: string, public purpose: "login" | "register") {
+  constructor(
+    message: string,
+    public email: string,
+    public purpose: "login" | "register",
+    public method: "email" | "totp" = "email"
+  ) {
     super(message);
   }
 }
 
-export const verifyRoute = (e: CodeRequiredError) => `/verify?email=${encodeURIComponent(e.email)}&purpose=${e.purpose}`;
+export const verifyRoute = (e: CodeRequiredError) =>
+  `/verify?email=${encodeURIComponent(e.email)}&purpose=${e.purpose}${e.method === "totp" ? "&method=totp" : ""}`;
 
 export const loginUser = async (email: string, password: string): Promise<User> => {
-  let data: AuthSession | { otpRequired: true; email: string };
+  let data: AuthSession | { otpRequired: true; email: string; method?: "totp" };
   try {
-    data = await apiFetch<AuthSession | { otpRequired: true; email: string }>("/auth/login", {
+    data = await apiFetch<AuthSession | { otpRequired: true; email: string; method?: "totp" }>("/auth/login", {
       method: "POST",
       body: { email, password },
       auth: false,
@@ -27,7 +33,10 @@ export const loginUser = async (email: string, password: string): Promise<User> 
     }
     throw error;
   }
-  if ("otpRequired" in data) throw new CodeRequiredError("We emailed you a sign-in code.", data.email, "login");
+  if ("otpRequired" in data) {
+    if (data.method === "totp") throw new CodeRequiredError("Enter the code from your authenticator app.", data.email, "login", "totp");
+    throw new CodeRequiredError("We emailed you a sign-in code.", data.email, "login");
+  }
   setSession(data);
   return data.user;
 };
@@ -46,6 +55,24 @@ export const verifyLoginCode = async (email: string, code: string): Promise<User
 /** Turn the emailed sign-in code on or off. */
 export const setTwoFactorEmail = async (enabled: boolean): Promise<User> => {
   const data = await apiFetch<{ user: User }>("/auth/two-factor", { method: "POST", body: { enabled } });
+  updateSessionUser(data.user);
+  return data.user;
+};
+
+/** Authenticator app: step 1 returns a QR code and the secret to type in manually. */
+export const startTotpSetup = async (): Promise<{ secret: string; uri: string; qr: string }> =>
+  apiFetch("/auth/totp/setup", { method: "POST" });
+
+/** Step 2: confirm with a code from the app to switch it on. */
+export const enableTotp = async (code: string): Promise<User> => {
+  const data = await apiFetch<{ user: User }>("/auth/totp/enable", { method: "POST", body: { code } });
+  updateSessionUser(data.user);
+  return data.user;
+};
+
+/** Switch the authenticator off with a current code or the account password. */
+export const disableTotp = async (proof: { code?: string; password?: string }): Promise<User> => {
+  const data = await apiFetch<{ user: User }>("/auth/totp/disable", { method: "POST", body: proof });
   updateSessionUser(data.user);
   return data.user;
 };

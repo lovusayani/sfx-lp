@@ -71,7 +71,7 @@ export function OtpInput({
             if (only) focus(i + 1);
           }}
           className={cn(
-            "h-[58px] w-[44px] rounded-[14px] border bg-sfx-field text-center text-[24px] font-semibold text-sfx-text focus:border-sfx-gold focus:outline-none sm:w-[50px]",
+            "h-[58px] w-[44px] rounded-[10px] border bg-sfx-field text-center text-[24px] font-semibold text-sfx-text focus:border-sfx-gold focus:outline-none sm:w-[50px]",
             d ? "border-sfx-border-strong" : "border-sfx-line"
           )}
         />

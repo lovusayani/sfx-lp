@@ -21,11 +21,9 @@ import { asyncHandler } from "../utils/asyncHandler";
 
 type BrandingLogoVariant = "dark" | "light" | "mobile";
 
-const BRANDING_DIMENSIONS: Record<BrandingLogoVariant, { width: number; height: number }> = {
-  dark: { width: 270, height: 74 },
-  light: { width: 270, height: 74 },
-  mobile: { width: 180, height: 62 },
-};
+/** Logos may be any PNG within these bounds; the app scales them to fit. */
+const LOGO_LIMITS = { minHeight: 24, maxWidth: 2400, maxHeight: 2400 };
+const LOGO_VARIANTS: BrandingLogoVariant[] = ["dark", "light", "mobile"];
 
 const readPngDimensions = (filePath: string): { width: number; height: number } => {
   const buffer = fs.readFileSync(filePath);
@@ -58,13 +56,23 @@ export const DEFAULT_APP_NAME = "Swiss Liquidity";
 export const DEFAULT_SHORT_NAME = "SLq";
 
 const toBrandingPayload = (
-  branding?: { darkLogoPath?: string; lightLogoPath?: string; mobileLogoPath?: string; appName?: string; shortName?: string } | null
+  branding?: {
+    darkLogoPath?: string;
+    lightLogoPath?: string;
+    mobileLogoPath?: string;
+    appName?: string;
+    shortName?: string;
+    appTheme?: string;
+    allowUserTheme?: boolean;
+  } | null
 ) => ({
   appName: branding?.appName || DEFAULT_APP_NAME,
   shortName: branding?.shortName || DEFAULT_SHORT_NAME,
   darkLogoPath: resolveLogoPath(branding?.darkLogoPath),
   lightLogoPath: resolveLogoPath(branding?.lightLogoPath),
   mobileLogoPath: resolveLogoPath(branding?.mobileLogoPath),
+  appTheme: branding?.appTheme || "dark",
+  allowUserTheme: Boolean(branding?.allowUserTheme),
 });
 
 const resolvePublicPath = (publicPath?: string): string => {
@@ -993,9 +1001,18 @@ export const updateBrandingName = asyncHandler(async (req: Request, res: Respons
   return res.json({ branding: toBrandingPayload(branding) });
 });
 
+/** PATCH /api/admin/setup/theme — theme for every client app user. */
+export const updateAppTheme = asyncHandler(async (req: Request, res: Response) => {
+  const branding = (await Branding.findOne({ key: "default" })) || new Branding({ key: "default" });
+  branding.appTheme = req.body.appTheme;
+  if (typeof req.body.allowUserTheme === "boolean") branding.allowUserTheme = req.body.allowUserTheme;
+  await branding.save();
+  return res.json({ branding: toBrandingPayload(branding) });
+});
+
 export const uploadBrandingLogo = asyncHandler(async (req: Request, res: Response) => {
   const variant = String(req.params.variant || "").trim().toLowerCase() as BrandingLogoVariant;
-  if (!Object.keys(BRANDING_DIMENSIONS).includes(variant)) {
+  if (!LOGO_VARIANTS.includes(variant)) {
     res.status(400);
     throw new Error("Invalid logo variant");
   }
@@ -1005,12 +1022,15 @@ export const uploadBrandingLogo = asyncHandler(async (req: Request, res: Respons
     throw new Error("PNG logo file is required");
   }
 
-  const expected = BRANDING_DIMENSIONS[variant];
   const dimensions = readPngDimensions(req.file.path);
-  if (dimensions.width !== expected.width || dimensions.height !== expected.height) {
+  if (
+    dimensions.height < LOGO_LIMITS.minHeight ||
+    dimensions.width > LOGO_LIMITS.maxWidth ||
+    dimensions.height > LOGO_LIMITS.maxHeight
+  ) {
     fs.unlinkSync(req.file.path);
     res.status(400);
-    throw new Error(`Invalid image size. ${variant} logo must be ${expected.width}x${expected.height}px`);
+    throw new Error(`Use a PNG at least ${LOGO_LIMITS.minHeight}px tall and at most ${LOGO_LIMITS.maxWidth}px on each side.`);
   }
 
   const publicPath = `/uploads/${req.file.filename}`;

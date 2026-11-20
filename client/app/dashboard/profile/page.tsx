@@ -44,7 +44,7 @@ export default function ProfilePage() {
 
   if (loading || !user) {
     return (
-      <div className="flex flex-col gap-[19px]">
+      <div className="flex flex-col gap-3.5">
         <TopBar backHref="/dashboard" caption="PROFILE" />
         <Skeleton className="h-[180px]" />
         <Skeleton className="h-[320px]" />
@@ -84,12 +84,12 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="sfx-enter flex flex-col gap-[19px]">
+    <div className="sfx-enter flex flex-col gap-3.5">
       <TopBar backHref="/dashboard" caption="PROFILE" />
 
-      <div className="grid gap-[19px] lg:grid-cols-[1fr_1.1fr] lg:items-start">
-        <div className="flex flex-col gap-[19px]">
-          <section className="sfx-card flex flex-col items-center gap-3 px-6 pb-7 pt-8 text-center" aria-label="Your profile">
+      <div className="grid gap-3.5 lg:grid-cols-[1fr_1.1fr] lg:items-start">
+        <div className="flex flex-col gap-3.5">
+          <section className="sfx-card flex flex-col items-center gap-3 px-4 pb-7 pt-8 text-center" aria-label="Your profile">
             <div className="relative">
               {user.avatar ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -123,13 +123,13 @@ export default function ProfilePage() {
 
           {message && <Alert tone={message.tone}>{message.text}</Alert>}
 
-          <section className="sfx-card p-[21px]" aria-label="Personal details">
+          <section className="sfx-card p-4" aria-label="Personal details">
             <div className="mb-2 flex items-center justify-between">
               <h2 className="text-[16px] font-semibold text-sfx-text">Personal details</h2>
               <button
                 type="button"
                 onClick={() => setEditing(true)}
-                className="inline-flex items-center gap-1.5 rounded-[30px] bg-sfx-gold-soft px-3 py-1.5 text-[12px] font-semibold text-sfx-accent hover:brightness-110"
+                className="inline-flex items-center gap-1.5 rounded-[12px] bg-sfx-gold-soft px-3 py-1.5 text-[12px] font-semibold text-sfx-accent hover:brightness-110"
               >
                 <Pencil size={13} /> Edit
               </button>
@@ -143,7 +143,7 @@ export default function ProfilePage() {
           </section>
         </div>
 
-        <div className="flex flex-col gap-[19px]">
+        <div className="flex flex-col gap-3.5">
           <MenuList>
             <MenuRow href={kyc.href} icon={ShieldCheck} label="Identity verification" value={kyc.label.toLowerCase()} />
             <MenuRow href="/dashboard/performance" icon={TrendingUp} label="Performance" />
