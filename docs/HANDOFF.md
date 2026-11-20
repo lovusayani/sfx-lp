@@ -38,6 +38,21 @@ State as of 2026-11-20 (session closed), branch `claude/friendly-noether-u03gym`
 - Deploy agent self-updates from each bundle; `publish-bundle.sh` strips CRLF from `ops/*.sh`
   (a Windows-built bundle once broke it with a CRLF shebang).
 
+## Domains (2026-11-20)
+- **https://app.swissconnector.com** (client app) and **https://adm.swissconnector.com** (admin; `/` → `/admin`,
+  `app…/admin*` → adm). Cloudflare zone `swissconnector.com`, proxied A records → 168.144.73.76.
+  Zone SSL mode left at "Full" and "Always Use HTTPS" left off because the apex `swissconnector.com`
+  (2.57.91.91, not ours) shares the zone; our Nginx redirects HTTP→HTTPS itself.
+- Origin TLS: Cloudflare Origin CA cert (app + adm, expires 2041-11-16) in `/home/swissliq/ssl/`
+  (key root-only, 600). The private key was generated on the owner's PC (`C:/Users/sprsr/.sfxlp/ssl/`).
+- Nginx site `/etc/nginx/sites-available/swissliq.conf` (source: `scripts/ops/nginx/swissliq.conf`),
+  not default_server; real client IP from `CF-Connecting-IP`. Curreex unchanged (301 / https 200).
+- `shared/.env`: `CLIENT_URL=https://app.swissconnector.com`, `CLIENT_URLS=https://adm.swissconnector.com`,
+  `COOKIE_SECURE=true` (previous file kept as `.env.bak-*`).
+- Test port :8080 closed (Nginx `swissliq-test.conf` disabled, ufw rule removed).
+- Cloudflare API token (zone-scoped: DNS, SSL and Certificates, Zone Settings) is in the owner's
+  `C:/Users/sprsr/.sfxlp/cloudflare.token.txt`; delete it in Cloudflare when no longer needed.
+
 ## Live on staging now
 - Release `202611191815-33d0586` (admin rebuild + onboarding design fix + Resend email), deployed
   2026-11-19 18:29 UTC. `sfx-api`/`sfx-web` active, `/api/health` 200, Curreex 301 (unchanged).
@@ -73,8 +88,7 @@ State as of 2026-11-20 (session closed), branch `claude/friendly-noether-u03gym`
 1. Owner tests email + new admin on staging and reports issues. Then remove the unused legacy UI (`design/`, old dashboard
    components). Publish with `scripts/ops/publish-bundle.sh staging` (agent deploys within ~2 min).
    Windows bundles include `sharp-win32` (unused: no next/image) — harmless.
-2. Domain + HTTPS (owner to provide domain and DNS provider) → then close port 8080 / remove
-   `swissliq-test.conf`, set `COOKIE_SECURE=true` and `CLIENT_URL` in `shared/.env`.
+2. Domain + HTTPS — done (see Domains).
 3. Verify a sending domain in Resend and set `EMAIL_FROM=Name <no-reply@domain>` in `shared/.env`.
 4. PWA manifest/service worker. Optional: support tickets + admin audit log (needs new API).
 
