@@ -62,7 +62,7 @@ const userSchema = new Schema<IUser>(
     lockInBalance: { type: Number, default: 500, min: 0 },
     role: { type: String, enum: ["admin", "lp"], default: "lp" },
     status: { type: String, enum: ["active", "suspended"], default: "active" },
-    password: { type: String, required: true, minlength: 8 },
+    password: { type: String, required: true, minlength: 6 },
     mustChangePassword: { type: Boolean, default: true },
     onboardingCompleted: { type: Boolean, default: false },
     kycSubmitted: { type: Boolean, default: false },

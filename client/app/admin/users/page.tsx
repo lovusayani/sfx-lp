@@ -331,13 +331,13 @@ function UserDialog({ user, onClose, onChanged }: { user: AdminLpUser | null; on
           </section>
 
           <section className="grid grid-cols-[1fr_auto] items-end gap-3">
-            <Field label="Set new password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} hint="At least 8 characters. Share it securely." />
+            <Field label="Set new password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} hint="6+ characters with a letter and a number. Share it securely." />
             <Btn
               variant="secondary"
               className="mb-[26px]"
               loading={busy === "pw"}
               onClick={() => {
-                if (password.trim().length < 8) return setMsg({ tone: "danger", text: "The password needs at least 8 characters." });
+                if (password.trim().length < 6 || !/[a-z]/i.test(password) || !/\d/.test(password)) return setMsg({ tone: "danger", text: "Use at least 6 characters with a letter and a number." });
                 run("pw", () => updateLpUserPassword(user.id, password.trim()), "Password updated.").then(() => setPassword(""));
               }}
             >
@@ -363,7 +363,7 @@ function CreateUserDialog({ open, onClose, onCreated }: { open: boolean; onClose
     e?.preventDefault();
     if (form.fullName.trim().length < 2) return setError("Enter the full name.");
     if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) return setError("Enter a valid email.");
-    if (form.password.length < 8) return setError("The password needs at least 8 characters.");
+    if (form.password.length < 6 || !/[a-z]/i.test(form.password) || !/\d/.test(form.password)) return setError("Use at least 6 characters with a letter and a number.");
     setBusy(true);
     setError("");
     try {

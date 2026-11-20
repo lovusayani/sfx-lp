@@ -104,7 +104,7 @@ export default function LoginPage() {
           placeholder="••••••••••••"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          minLength={8}
+          minLength={1}
           required
         />
         <div className="flex items-center justify-between">

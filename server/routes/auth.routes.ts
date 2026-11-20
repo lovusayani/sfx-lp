@@ -27,7 +27,7 @@ router.get("/login", (_req, res) => {
 
 router.post(
   "/login",
-  [body("email").isEmail(), body("password").isString().isLength({ min: 8 })],
+  [body("email").isEmail(), body("password").isString().isLength({ min: 1 })],
   validateRequest,
   login
 );
@@ -39,8 +39,8 @@ router.post(
   "/change-password",
   protect,
   [
-    body("currentPassword").isString().isLength({ min: 8 }),
-    body("newPassword").isString().isLength({ min: 8 }),
+    body("currentPassword").isString().isLength({ min: 1 }),
+    body("newPassword").isString().isLength({ min: 6 }),
   ],
   validateRequest,
   changePassword
@@ -51,8 +51,8 @@ router.post(
   [
     body("fullName").isString().trim().isLength({ min: 2, max: 80 }),
     body("email").isEmail(),
-    body("phone").isString().trim().isLength({ min: 6, max: 20 }),
-    body("password").isString().isLength({ min: 12, max: 128 }),
+    body("phone").optional({ values: "falsy" }).isString().trim().isLength({ min: 6, max: 20 }),
+    body("password").isString().isLength({ min: 6, max: 128 }),
   ],
   validateRequest,
   register
@@ -67,7 +67,7 @@ router.post("/resend-otp", [body("email").isEmail(), body("purpose").isIn(["regi
 router.post("/forgot-password", [body("email").isEmail()], validateRequest, forgotPassword);
 router.post(
   "/reset-password",
-  [body("token").isString(), body("newPassword").isString().isLength({ min: 12, max: 128 })],
+  [body("token").isString(), body("newPassword").isString().isLength({ min: 6, max: 128 })],
   validateRequest,
   resetPassword
 );

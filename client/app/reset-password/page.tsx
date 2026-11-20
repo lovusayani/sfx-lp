@@ -89,11 +89,11 @@ function ResetPasswordInner() {
             placeholder="From your welcome email"
             value={current}
             onChange={(e) => setCurrent(e.target.value)}
-            minLength={8}
+            minLength={1}
             required
           />
         )}
-        <Field label="New password" type="password" autoComplete="new-password" placeholder="At least 12 characters" value={next} onChange={(e) => setNext(e.target.value)} required />
+        <Field label="New password" type="password" autoComplete="new-password" placeholder="At least 6 characters" value={next} onChange={(e) => setNext(e.target.value)} required />
         <Field
           label="Confirm password"
           type="password"

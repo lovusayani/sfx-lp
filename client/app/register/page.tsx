@@ -27,7 +27,7 @@ export default function RegisterPage() {
     setError("");
     setNotice("");
     if (!isStrongPassword(form.password)) {
-      setError("Use 12+ characters with a letter, a number and a special character.");
+      setError("Use at least 6 characters with a letter and a number.");
       return;
     }
     if (form.password !== form.confirm) {
@@ -74,7 +74,7 @@ export default function RegisterPage() {
       <form onSubmit={onSubmit} className="flex flex-col gap-[19px]">
         <Field label="Full name" autoComplete="name" placeholder="Your legal name" value={form.fullName} onChange={set("fullName")} required />
         <Field label="Email address" type="email" autoComplete="email" placeholder="you@example.com" value={form.email} onChange={set("email")} required />
-        <Field label="Mobile number" type="tel" autoComplete="tel" inputMode="tel" placeholder="+91 ••••• •••••" value={form.phone} onChange={set("phone")} required />
+        <Field label="Mobile number (optional)" type="tel" autoComplete="tel" inputMode="tel" placeholder="+91 ••••• •••••" value={form.phone} onChange={set("phone")} />
         <Field label="Password" type="password" autoComplete="new-password" placeholder="Create a strong password" value={form.password} onChange={set("password")} required />
         <Field label="Confirm password" type="password" autoComplete="new-password" placeholder="Repeat password" value={form.confirm} onChange={set("confirm")} error={confirmError} required />
         <Checkbox checked={agree} onChange={setAgree}>

@@ -1,13 +1,13 @@
 import { cn } from "./cn";
 
-/** Rules shown in Figma 2:218. The API itself requires 8+ characters; the UI asks for stronger. */
+/** Rules shown in Figma 2:218. Required: 6+ characters with a letter and a number. A special character is optional (stronger). */
 export const PASSWORD_RULES = [
-  { id: "length", label: "12+ characters", test: (v: string) => v.length >= 12 },
-  { id: "mix", label: "Letter & number", test: (v: string) => /[a-z]/i.test(v) && /\d/.test(v) },
-  { id: "special", label: "Special character", test: (v: string) => /[^a-z0-9]/i.test(v) },
+  { id: "length", label: "6+ characters", test: (v: string) => v.length >= 6, required: true },
+  { id: "mix", label: "Letter & number", test: (v: string) => /[a-z]/i.test(v) && /\d/.test(v), required: true },
+  { id: "special", label: "Special character (optional)", test: (v: string) => /[^a-z0-9]/i.test(v), required: false },
 ] as const;
 
-export const isStrongPassword = (value: string) => PASSWORD_RULES.every((r) => r.test(value));
+export const isStrongPassword = (value: string) => PASSWORD_RULES.every((r) => !r.required || r.test(value));
 
 export function PasswordChecklist({ value, className }: { value: string; className?: string }) {
   return (

@@ -81,7 +81,7 @@ function ChangePasswordDialog({ open, onClose }: { open: boolean; onClose: () =>
   const submit = async (e?: FormEvent) => {
     e?.preventDefault();
     if (!current || !next) return setMsg({ tone: "danger", text: "Fill in all fields." });
-    if (next.length < 8) return setMsg({ tone: "danger", text: "The new password needs at least 8 characters." });
+    if (next.length < 6 || !/[a-z]/i.test(next) || !/\d/.test(next)) return setMsg({ tone: "danger", text: "Use at least 6 characters with a letter and a number." });
     if (next !== confirm) return setMsg({ tone: "danger", text: "The new passwords don’t match." });
     setBusy(true);
     setMsg(null);
@@ -116,7 +116,7 @@ function ChangePasswordDialog({ open, onClose }: { open: boolean; onClose: () =>
     >
       <form onSubmit={submit} className="flex flex-col gap-4">
         <Field label="Current password" type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} />
-        <Field label="New password" type="password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} hint="At least 8 characters" />
+        <Field label="New password" type="password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} hint="6+ characters with a letter and a number" />
         <Field label="Confirm new password" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
         {msg && <Alert tone={msg.tone}>{msg.text}</Alert>}
         <button type="submit" hidden />

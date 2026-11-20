@@ -71,7 +71,7 @@ router.post(
   [
     body("fullName").isString().isLength({ min: 2 }),
     body("email").isEmail(),
-    body("password").isString().isLength({ min: 8 }),
+    body("password").isString().isLength({ min: 6 }).matches(/[A-Za-z]/).matches(/\d/),
     body("phone").optional().isString(),
   ],
   validateRequest,
@@ -105,7 +105,7 @@ router.patch(
 
 router.patch(
   "/users/:id/password",
-  [param("id").isMongoId(), body("password").isString().isLength({ min: 8 })],
+  [param("id").isMongoId(), body("password").isString().isLength({ min: 6 }).matches(/[A-Za-z]/).matches(/\d/)],
   validateRequest,
   updateLpUserPassword
 );

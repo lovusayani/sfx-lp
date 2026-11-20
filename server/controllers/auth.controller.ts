@@ -37,8 +37,8 @@ const sanitizeUser = (user: any) => ({
   twoFactorEmail: Boolean(user.twoFactorEmail),
 });
 
-/** Strong-password rule shared with the client checklist: 12+ chars, letter, number, symbol. */
-const isStrongPassword = (p: string) => p.length >= 12 && /[A-Za-z]/.test(p) && /\d/.test(p) && /[^A-Za-z0-9]/.test(p);
+/** Password rule shared with the client checklist: 6+ chars with a letter and a number (symbols optional). */
+const isStrongPassword = (p: string) => p.length >= 6 && /[A-Za-z]/.test(p) && /\d/.test(p);
 
 const fail = (res: Response, status: number, message: string): never => {
   res.status(status);
@@ -129,7 +129,7 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
   const email = String(req.body.email || "").trim().toLowerCase();
   const phone = String(req.body.phone || "").trim();
   const password = String(req.body.password || "");
-  if (!isStrongPassword(password)) fail(res, 400, "Use 12+ characters with a letter, a number and a special character.");
+  if (!isStrongPassword(password)) fail(res, 400, "Use at least 6 characters with a letter and a number.");
 
   let user = await User.findOne({ email });
   if (user && user.emailVerified !== false) {
@@ -200,7 +200,7 @@ export const resetPassword = asyncHandler(async (req: Request, res: Response) =>
   const token = String(req.body.token || "");
   const newPassword = String(req.body.newPassword || "");
   if (!/^[a-f0-9]{64}$/.test(token)) fail(res, 400, "This reset link is invalid or has expired.");
-  if (!isStrongPassword(newPassword)) fail(res, 400, "Use 12+ characters with a letter, a number and a special character.");
+  if (!isStrongPassword(newPassword)) fail(res, 400, "Use at least 6 characters with a letter and a number.");
   const user = await User.findOne({ passwordResetHash: sha256(token), passwordResetExpires: { $gt: new Date() } });
   if (!user) return fail(res, 400, "This reset link is invalid or has expired.");
   user.password = newPassword;
@@ -280,6 +280,7 @@ export const changePassword = asyncHandler(async (req: Request, res: Response) =
   }
 
   const { currentPassword, newPassword } = req.body;
+  if (!isStrongPassword(String(newPassword || ""))) fail(res, 400, "Use at least 6 characters with a letter and a number.");
 
   const isValid = await req.user.comparePassword(currentPassword);
   if (!isValid) {
