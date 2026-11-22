@@ -9,6 +9,7 @@ export interface LicenseInfo {
   amount: string;
   currency: string;
   payTo: string;
+  payName?: string;
   note: string;
   qrUrl: string;
   reference: string;

@@ -7,7 +7,8 @@ import { ILicenseState, LicenseState } from "../models/LicenseState";
 /**
  * Licence switch controlled by the vendor from a Google Sheet (published as CSV).
  *
- * Sheet columns (header row, any order):  app | locked | amount | currency | pay_to | note | qr_url
+ * Sheet columns (header row, any order):  app | locked | amount | currency | pay_to | pay_name | note | qr_url
+ *   - amount may be empty: the client then enters the amount on the payment page
  *   - the row whose `app` equals LICENSE_APP_ID is used
  *   - locked: ON/OFF, TRUE/FALSE, YES/NO, 1/0
  *
@@ -23,6 +24,7 @@ export interface LicensePublic {
   amount: string;
   currency: string;
   payTo: string;
+  payName: string;
   note: string;
   qrUrl: string;
   reference: string;
@@ -119,6 +121,7 @@ export const refreshLicense = async (): Promise<ILicenseState> => {
     state.amount = row.amount || "";
     state.currency = row.currency || "";
     state.payTo = row.pay_to || "";
+    state.payName = row.pay_name || "";
     state.note = row.note || "";
     state.qrUrl = row.qr_url || "";
     state.lastError = "";
@@ -146,6 +149,7 @@ export const toPublic = (s: ILicenseState): LicensePublic => ({
   amount: s.amount || "",
   currency: s.currency || "",
   payTo: s.payTo || "",
+  payName: s.payName || "",
   note: s.note || "",
   qrUrl: s.qrUrl || "",
   reference: s.reference,

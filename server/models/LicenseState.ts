@@ -7,6 +7,7 @@ export interface ILicenseState extends Document {
   amount?: string;
   currency?: string;
   payTo?: string;
+  payName?: string;
   note?: string;
   qrUrl?: string;
   reference: string;
@@ -24,6 +25,7 @@ const licenseStateSchema = new Schema<ILicenseState>(
     amount: String,
     currency: String,
     payTo: String,
+    payName: String,
     note: String,
     qrUrl: String,
     reference: { type: String, required: true },

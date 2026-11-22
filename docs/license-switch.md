@@ -13,7 +13,10 @@ Vendor-controlled lock, switched from a Google Sheet. Server-enforced.
 - "Pay now" → `/license/pay`: QR (`client/public/license/qr.png` or the sheet's `qr_url`), amount, pay-to, reference.
 
 ## Sheet
-Header row: `app | locked | amount | currency | pay_to | note | qr_url`, one row with `app = swissliquidity`.
+Header row: `app | locked | amount | currency | pay_to | pay_name | note | qr_url`, one row with `app = swissliquidity`.
+Leave `amount` empty to let the client enter any amount: the payment page then builds a UPI QR / UPI app link
+(`upi://pay?pa=<pay_to>&am=<amount>&cu=INR&tn=<reference>`) when `pay_to` is a UPI ID and currency is INR.
+The owner's switch sheet is "SLq licence switch" in the owner's Google account (ask the owner for access).
 `locked`: ON/OFF (also TRUE/FALSE, YES/NO, 1/0). File → Share → Publish to web → CSV → put the link in the
 server `.env` as `LICENSE_SHEET_CSV_URL` (server only; never sent to browsers).
 
