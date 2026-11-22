@@ -75,10 +75,10 @@ export default function LicensePayPage() {
           <img
             src={qrSrc}
             alt="Payment QR code"
-            width={240}
-            height={240}
+            width={260}
+            height={332}
             onError={() => setQrFailed(true)}
-            className="h-[240px] w-[240px] rounded-[18px] bg-white object-contain p-3"
+            className="h-auto w-[260px] max-w-full rounded-[18px] bg-white object-contain p-2"
           />
         ) : (
           <div className="flex h-[240px] w-[240px] flex-col items-center justify-center gap-2 rounded-[18px] bg-sfx-surface-2 text-sfx-muted">
