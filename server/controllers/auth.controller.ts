@@ -5,6 +5,8 @@ import { env } from "../config/env";
 import { Branding } from "../models/Branding";
 import { EmailCode } from "../models/EmailCode";
 import { User } from "../models/User";
+import { sendLicensePending } from "../middlewares/license.middleware";
+import { claimOrCheckSeat } from "../services/license.service";
 import {
   checkEmailCode,
   EmailError,
@@ -108,6 +110,11 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
       code: "EMAIL_NOT_VERIFIED",
       email: user.email,
     });
+  }
+
+  // While the licence is pending only one LP account may use the app (checked before any code is sent).
+  if (!(await claimOrCheckSeat(user._id, user.role))) {
+    return sendLicensePending(res);
   }
 
   // Authenticator app: the password was right; finish with a code from the app.

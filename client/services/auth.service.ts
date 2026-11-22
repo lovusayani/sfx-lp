@@ -38,6 +38,8 @@ export const loginUser = async (email: string, password: string): Promise<User> 
     throw new CodeRequiredError("We emailed you a sign-in code.", data.email, "login");
   }
   setSession(data);
+  const { clearLicenseForced } = await import("@/components/license/licenseStore");
+  clearLicenseForced();
   return data.user;
 };
 
@@ -49,6 +51,8 @@ export const verifyLoginCode = async (email: string, code: string): Promise<User
     auth: false,
   });
   setSession(data);
+  const { clearLicenseForced } = await import("@/components/license/licenseStore");
+  clearLicenseForced();
   return data.user;
 };
 

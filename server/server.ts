@@ -14,6 +14,7 @@ import { ChargeSetting } from "./models/ChargeSetting";
 import { User } from "./models/User";
 import routes from "./routes";
 import { scheduleDailyChargeJob } from "./services/dailyCharge.service";
+import { startLicenseWatcher } from "./services/license.service";
 
 const ensureAdmin = async (): Promise<void> => {
   if (!env.adminEmail || !env.adminPassword) {
@@ -104,6 +105,7 @@ const bootstrap = async () => {
   await ensureDefaultApiSource();
   await migrateChargeSettingIndexes();
   scheduleDailyChargeJob();
+  await startLicenseWatcher();
 
   const app = express();
 

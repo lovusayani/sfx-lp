@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Inter } from "next/font/google";
 
+import { LicenseGate } from "@/components/license/LicenseGate";
 import { ServiceWorkerRegistrar } from "@/components/pwa/ServiceWorkerRegistrar";
 import ForegroundPushListener from "@/components/push/ForegroundPushListener";
 import { FrontendThemeController } from "@/components/theme/FrontendThemeController";
@@ -46,6 +47,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <ForegroundPushListener />
         <ServiceWorkerRegistrar />
         {children}
+        <LicenseGate />
       </body>
     </html>
   );

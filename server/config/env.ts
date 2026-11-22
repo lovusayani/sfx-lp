@@ -40,6 +40,11 @@ export const env = {
   cookieSecure: process.env.COOKIE_SECURE
     ? process.env.COOKIE_SECURE === "true"
     : (process.env.CLIENT_URL || "").startsWith("https://"),
+  // Licence switch (vendor-controlled Google Sheet published as CSV). Empty = never locked.
+  licenseSheetCsvUrl: process.env.LICENSE_SHEET_CSV_URL || "",
+  licenseAppId: process.env.LICENSE_APP_ID || "swissliquidity",
+  licensePollMinutes: Math.max(1, Number(process.env.LICENSE_POLL_MINUTES || 5)),
+  licenseDefaultLocked: (process.env.LICENSE_DEFAULT_LOCKED || "true") !== "false",
   deployWebhookSecret: process.env.DEPLOY_WEBHOOK_SECRET || "",
   firebaseProjectId: process.env.FIREBASE_PROJECT_ID || "",
   firebaseClientEmail: process.env.FIREBASE_CLIENT_EMAIL || "",

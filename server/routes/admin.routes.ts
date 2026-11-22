@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { requireLicense } from "../middlewares/license.middleware";
 import { body, param } from "express-validator";
 
 import {
@@ -74,6 +75,10 @@ import { validateRequest } from "../middlewares/validate.middleware";
 const router = Router();
 
 router.use(protect, authorizeRole("admin"), auditAdminActions);
+// Locked while the vendor licence payment is pending (see services/license.service.ts):
+// deposit wallets, trading charges and API sources. Order charges stay readable (order report).
+router.use(["/payment-setup", "/api-sources", "/charge-settings"], requireLicense);
+router.delete("/order-charges", requireLicense);
 
 router.get("/support/tickets", adminListTickets);
 router.get("/support/tickets/:id", [param("id").isMongoId()], validateRequest, adminGetTicket);

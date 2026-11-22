@@ -68,8 +68,18 @@ export class ApiError extends Error {
   }
 }
 
+export const LICENSE_EVENT = "sfx-license-pending";
+
+export class LicensePendingError extends ApiError {}
+
 const parseResponse = async <T>(response: Response): Promise<T> => {
-  const data = (await response.json().catch(() => ({}))) as T & { message?: string };
+  const data = (await response.json().catch(() => ({}))) as T & { message?: string; code?: string; license?: unknown };
+  if (response.status === 402 && data.code === "LICENSE_PENDING") {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent(LICENSE_EVENT, { detail: data.license }));
+    }
+    throw new LicensePendingError(data.message || "API payment pending", 402);
+  }
   if (!response.ok) {
     throw new ApiError((data as { message?: string }).message || "Request failed", response.status, data as Record<string, unknown>);
   }

@@ -1,5 +1,6 @@
 "use client";
 
+import { LicenseSectionLock } from "@/components/license/LicenseGate";
 import { useEffect, useState } from "react";
 import { Download, ImageUp, Monitor, Moon, Sun, Trash2 } from "lucide-react";
 
@@ -45,7 +46,12 @@ export default function AdminSettingsPage() {
       <div className="mt-4">
         {section === "branding" && <BrandingSection />}
         {section === "appearance" && <AppearanceSection />}
-        {section === "payments" && <PaymentsSection />}
+        {section === "payments" && (
+          <>
+            <LicenseSectionLock onLeave={() => setSection("branding")} leaveLabel="Back to settings" />
+            <PaymentsSection />
+          </>
+        )}
         {section === "data" && <DataSection />}
       </div>
     </>

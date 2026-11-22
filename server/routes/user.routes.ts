@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { requireSeat } from "../middlewares/license.middleware";
 import { body, param } from "express-validator";
 
 import {
@@ -39,7 +40,7 @@ import { validateRequest } from "../middlewares/validate.middleware";
 
 const router = Router();
 
-router.use(protect);
+router.use(protect, requireSeat);
 
 router.post("/onboarding/complete", completeOnboarding);
 

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { requireSeat } from "../middlewares/license.middleware";
 import { body } from "express-validator";
 
 import {
@@ -37,7 +38,7 @@ router.post(
 
 router.post("/refresh", refresh);
 router.post("/logout", protect, logout);
-router.get("/me", protect, me);
+router.get("/me", protect, requireSeat, me);
 router.post(
   "/change-password",
   protect,
