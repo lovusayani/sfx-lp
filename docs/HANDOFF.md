@@ -131,3 +131,11 @@ State as of 2026-11-20 (project handed over), branch `claude/friendly-noether-u0
 - Never modify, restart or deploy to Curreex; never touch its database.
 - No droplet upgrade for now. Ask before any change outside `/home/swissliq` and the new Nginx site.
 - Secrets never in chat or git; generated on the server or entered in hidden prompts.
+
+## 2026-11-22: Licence switch ("API Payment Pending") live
+- Release `202611221640-123c634` deployed. Server `.env` has `LICENSE_SHEET_CSV_URL` (owner's published CSV of
+  the Google Sheet "SLq licence switch", row `swissliquidity`). Live status: `locked=true`, pay_to `srsin@ptyes`, INR,
+  amount empty (client enters any amount; page builds a UPI QR/link with reference `SLQ-F49AF4`).
+- Locked while ON: Admin → Settings → Deposit wallets, Trading → Charges, Trading → API sources (402 on their APIs),
+  broker view; only the first LP to sign in can use the app. Owner sets `locked` to OFF after payment (≤5 min).
+- See `docs/license-switch.md`. Test env network now allows app/adm.swissconnector.com for live checks.
